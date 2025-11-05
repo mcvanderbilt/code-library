@@ -20,3 +20,6 @@
 
 # Ignore personal files
 /personal_notes.md
+
+# Ignore examples
+/examples/
