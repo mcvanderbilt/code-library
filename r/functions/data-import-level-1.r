@@ -40,7 +40,7 @@ data.import <- function(
 ) {
     # Install and load the required package(s)
     if (!requireNamespace("mosaic", quietly = TRUE)) install.packages("mosaic")
-    library(mosaic)
+    library(mosaic)       # statistics functions
 
     # Set the working directory to the specified file path
     setwd(filePath)

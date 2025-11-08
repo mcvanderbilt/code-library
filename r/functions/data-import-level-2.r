@@ -35,10 +35,10 @@ data.import <- function(table.name = "myData", key.variable = NULL) {
   if (!requireNamespace("tools", quietly = TRUE)) install.packages("tools")
 
   # Load required packages
-  library(knitr)
-  library(mosaic)
-  library(readxl)
-  library(tools)
+  library(knitr)      # formatted tables
+  library(mosaic)     # statistics functions
+  library(readxl)     # reading from Excel
+  library(tools)      # file type identification through filename parsing
 
   # Define text alignment for descriptive statistics output table
   kable.align <- c(

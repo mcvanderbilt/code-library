@@ -11,7 +11,7 @@ load_packages <- function(
 ) {
 
   # List Tidyverse packages to avoid redundant loading
-  packages_tidyverse <- c(
+  packages.tidyverse <- c(
     "ggplot2",           # advanced graphics
     "dplyr",             # data manipulation
     "tidyr",             # data tidying
@@ -27,7 +27,7 @@ load_packages <- function(
   if ("tidyverse" %in% packages.to.load) {
     packages.to.load <- setdiff(
       packages.to.load,
-      packages_tidyverse
+      packages.tidyverse
     )
   }
 
@@ -105,7 +105,7 @@ load_packages <- function(
   # Clean up temporary objects
   rm(                    # remove objects that are no longer needed
     pkg,
-    packages_tidyverse
+    packages.tidyverse
   )
   gc()                   # garbage collection memory reclamation
 

@@ -46,11 +46,11 @@ data.import <- function(
   if (!requireNamespace("tools", quietly = TRUE)) install.packages("tools")
 
   # Load required packages
-  library(ggplot2)    # data visualization
+  library(ggplot2)    # advanced graphics
   library(knitr)      # formatted tables
-  library(mosaic)     # descriptive statistics
-  library(readxl)     # Excel file import
-  library(tools)      # file type identification
+  library(mosaic)     # statistics functions
+  library(readxl)     # reading from Excel
+  library(tools)      # file type identification through filename parsing
 
   # Define text alignment for descriptive statistics output table
   kable.align <- c(
