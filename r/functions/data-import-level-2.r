@@ -4,10 +4,10 @@
 
 # -------------------------------------------------------------------------
 # FUNCTION: data.import()
-# PURPOSE: Dynamic CSV/Excel file imports with descriptive statistics
-# AUTHOR: Matthew C. Vanderbilt, MSBA
-# CREATED: 7 November 2025
-# UPDATED: 7 November 2025
+# PURPOSE:  Dynamic CSV/Excel file imports with descriptive statistics
+# AUTHOR:   Matthew C. Vanderbilt, MSBA
+# CREATED:  7 November 2025
+# UPDATED:  7 November 2025
 # -------------------------------------------------------------------------
 # AI-GENERATED DESCRIPTION:
 # This function allows users to:
