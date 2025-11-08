@@ -19,7 +19,7 @@ packages.tidyverse <- c(
   "tidyr"               # data tidying
 )
 
-# A collection of commonly used R packages
+# Collection of commonly used R packages with tidyverse
 packages <- c(
   "broom",              # extract lm information
   "car",                # vif function
@@ -42,10 +42,3 @@ packages <- c(
   "tools",              # file type identification through filename parsing
   "truncnorm"           # generates and works with truncated normal distributions
 )
-
-
- library(ggplot2)    # data visualization
-  library(knitr)      # formatted tables
-  library(mosaic)     # descriptive statistics
-  library(readxl)     # Excel file import
-  library(tools)      # file type identification
