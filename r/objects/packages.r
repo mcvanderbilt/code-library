@@ -21,11 +21,13 @@ packages.tidyverse <- c(
 
 # Collection of commonly used R packages with tidyverse
 packages <- c(
+  "boot",               # 
   "broom",              # extract lm information
   "car",                # vif function
   "corrplot",           # correlation matrices with plots
   "glue",               # enables dynamic strings
   "gridExtra",          # combines multiple plots in a matrix
+  "hear",               # Robust file path handling
   "httr",               # enables HTTP requests and web APIs
   "jsonlite",           # converts between R objects and JSON
   "kableExtra",         # formats tables
@@ -38,6 +40,7 @@ packages <- c(
   "readxl",             # reading from Excel
   "scales",             # elegant loops and stdcoef; currency formatting
   "supernova",          # anova function with additional output
+  "supertables",        #
   "tidyverse",          # collection of R packages designed for data science
   "tools",              # file type identification through filename parsing
   "truncnorm"           # generates and works with truncated normal distributions
