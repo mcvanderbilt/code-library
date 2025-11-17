@@ -23,3 +23,6 @@
 
 # Ignore examples
 /examples/
+
+# Ignore Access database repositories
+/repositories/
