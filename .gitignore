@@ -26,3 +26,5 @@
 
 # Ignore Access database repositories
 /repositories/
+.Rproj.user
+.positai
