@@ -23,6 +23,14 @@ code-library/r/functions/
 └── load-packages.r           # Package loader with installation and duplicate avoidance
 ```
 
+## Example Loading
+See individual scripts for their use. The examples below show how to load them into your
+project for use.
+```r
+source("https://raw.githubusercontent.com/mcvanderbilt/code-library/main/r/functions/export-data.r")
+source("https://raw.githubusercontent.com/mcvanderbilt/code-library/main/r/functions/load-packages.r")
+```
+
 ## License
 All functions in this directory inherit the repository’s **GNU Affero General Public License
 v3.0 (AGPL‑3)** in [LICENSE](LICENSE) unless otherwise specified.
