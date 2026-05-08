@@ -6,8 +6,6 @@
 # -------------------------------------------------------------------------
 
 #' Bayes' Theorem Calculator with Color‑Impaired‑Safe Visualizations
-#' 
-#' @license AGPL-3
 #'
 #' Computes the posterior probability \eqn{P(A|B)} using Bayes' Theorem,
 #' generates a contingency table scaled to a user‑defined population size,
