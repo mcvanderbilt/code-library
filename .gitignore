@@ -7,6 +7,8 @@
 # Ignore R temporary files
 .Rhistory
 .RData
+.Rproj.user
+.positai
 
 # Ignore password files
 *.password
@@ -26,5 +28,6 @@
 
 # Ignore Access database repositories
 /repositories/
-.Rproj.user
-.positai
+
+# Ignore historical folders and files
+/zDeprecated/
