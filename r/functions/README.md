@@ -1,34 +1,31 @@
 # Vanderbilt Code Library
 **Matthew C. Vanderbilt, MSBA**
 
-This repository is a multi‑language **code library monorepo** containing reusable tools, teaching materials, and utilities across R, Python, SQL, and other technologies. It is designed to support analytics, data science instruction, reproducible research, and operational workflows.
+This directory contains **standalone, reusable R functions** such as those that support data
+import, export, package loading, and workflow governance. These functions are not part of a
+formal R package; instead, they serve as a **utility library** for analytics, teaching, and
+internal BI workflows.
 
 ---
 
 ## Repository Structure
 ```
-code-library/
+code-library/r/functions/
 │
-├── code-library.Rproj        # Single RStudio project for the entire monorepo
-|
-├── data/                     # Generated, sample, and reference datasets
+├── data-import-level-1.r     # Basic data import, lightweight and beginner-friendly helper
 │
-├── docs/                     # Documentation and teaching materials
+├── data-import-level-2.r     # Intermeidate data import; structured with additional checks
 │
-├── python/                   # Python modules and utilities
+├── data-import-level-3.r     # Governed import workflow
 │
-├── r/                        # All R packages live here
-│   ├── bayesToolkit/         # Bayes' Theorem teaching package
-|   ├── functions/            # Miscellaneous reusable functions and code snippets
-|   ├── objects/              # Deprecating
-│   └── ...
+├── export-data.r             # Flexible helper with CSV/XLSX, folder, and name guidance
 │
-├── scripts/                  # Executable scripts and automatio
-│
-├── sql/                      # SQL scripts and transformations
-│
-└── scripts/                  # Executable scripts and automation
+└── load-packages.r           # Package loader with installation and duplicate avoidance
 ```
 
 ## License
-This repository contains a primary [LICENSE](LICENSE), while individual components may be provided under different license. See subfolder LICENSE and DESCRIPTION files for details. Where not otherwise provided, the primary LICENSE applies.
+All functions in this directory inherit the repository’s **GNU Affero General Public License
+v3.0 (AGPL‑3)** in [LICENSE](LICENSE) unless otherwise specified.
+
+## AI Notice
+Some **documentation** has been generated or supplemented with the use of AI.

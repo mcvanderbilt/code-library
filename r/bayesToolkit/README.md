@@ -1,4 +1,5 @@
 # bayesToolkit
+**Matthew C. Vanderbilt, MSBA**
 
 **bayesToolkit** is an R package providing a clean, accessible, and teaching‑focused implementation of Bayes’ Theorem with color‑blind‑safe visualizations. It is designed for instructional use in graduate‑level probability and statistics courses, including ANA500A.
 
@@ -39,8 +40,8 @@ result$posterior_plot
 ```
 
 ## License
-This package is licensed under the GNU Affero General Public License v3.0 (AGPL‑3).
-See the LICENSE file for details.
+This package is licensed under the **GNU Affero General Public License v3.0 (AGPL‑3).**
+See [LICENSE](LICENSE) and [DESCRIPTION](DESCRIPTION) files for details.
 
-## Author
-**Matthew C. Vanderbilt, MSBA**
+## AI Notice
+Some **documentation** has been generated or supplemented with the use of AI.
