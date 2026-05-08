@@ -14,7 +14,7 @@ code-library/r/functions/
 │
 ├── data-import-level-1.r     # Basic data import, lightweight and beginner-friendly helper
 │
-├── data-import-level-2.r     # Intermeidate data import; structured with additional checks
+├── data-import-level-2.r     # Intermediate data import; structured with additional checks
 │
 ├── data-import-level-3.r     # Governed import workflow
 │
