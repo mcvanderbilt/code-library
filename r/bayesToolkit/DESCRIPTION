@@ -4,16 +4,24 @@ Version: 0.1.0
 Authors@R: 
     person("Matthew", "Vanderbilt", email = "matthew@email.com",
            role = c("aut", "cre"))
-Description: A toolkit for Bayes' Theorem calculations with accessible visualizations.
+Description: A toolkit for computing Bayes' Theorem, generating contingency 
+    tables, and producing accessible visualizations for probabilistic 
+    reasoning and analytical workflows.
 License: AGPL-3 | file LICENSE
+URL: https://mcvanderbilt.github.io/code-library/bayesToolkit/
+BugReports: https://github.com/mcvanderbilt/code-library/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-Depends: R (>= 4.0)
-Imports: dplyr, ggplot2, tidyr
-Config/roxygen2/version: 8.0.0
+Depends: 
+    R (>= 4.0)
+Imports: 
+    dplyr,
+    ggplot2,
+    tidyr
 Suggests: 
     knitr,
     rmarkdown,
     testthat (>= 3.0.0)
+Config/roxygen2/version: 8.0.0
 Config/testthat/edition: 3
 VignetteBuilder: knitr

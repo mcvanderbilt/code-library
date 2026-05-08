@@ -13,3 +13,5 @@
 ^code-library$
 ^doc$
 ^Meta$
+^_pkgdown\.yml$
+^pkgdown$
