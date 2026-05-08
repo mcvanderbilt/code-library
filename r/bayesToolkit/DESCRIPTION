@@ -8,7 +8,7 @@ Description: A toolkit for computing Bayes' Theorem, generating contingency
     tables, and producing accessible visualizations for probabilistic 
     reasoning and analytical workflows.
 License: AGPL-3 | file LICENSE
-URL: https://mcvanderbilt.github.io/code-library/bayesToolkit/
+URL: https://mcvanderbilt.github.io/code-library/bayesToolkit/, https://mcvanderbilt.github.io/code-library/
 BugReports: https://github.com/mcvanderbilt/code-library/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
