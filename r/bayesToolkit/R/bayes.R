@@ -310,10 +310,3 @@ bayes <- function(
   )
   
 }
-
-calc <- bayes(.7, .93, .3)
-calc$heatmap
-calc$barchart
-calc$posterior_plot
-calc$contingency_table
-View(calc$contingency_table)
