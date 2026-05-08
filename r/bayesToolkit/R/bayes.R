@@ -1,9 +1,79 @@
 # -------------------------------------------------------------------------
-# Purpose: 
+# Purpose: Bayes' Theorem Calculation for 2x2 Probabilities
 # Author: Matthew C. Vanderbilt, MSBA
 # Created: 7 May 2026
 # Updated: 7 May 2026
 # -------------------------------------------------------------------------
+
+#' Bayes' Theorem Calculator with Color‑Impaired‑Safe Visualizations
+#' 
+#' @license AGPL-3
+#'
+#' Computes the posterior probability \eqn{P(A|B)} using Bayes' Theorem,
+#' generates a contingency table scaled to a user‑defined population size,
+#' and produces three color‑blind‑safe ggplot2 visualizations:
+#' a grouped bar chart, a heatmap, and a posterior probability bar plot.
+#'
+#' This function accepts prevalence, sensitivity, and false positive rate
+#' as decimals, whole numbers, or percentage strings (e.g., `"7%"`, `"92"`, 
+#' `"0.07"`). All inputs are validated and normalized to decimal
+#' probabilities.
+#'
+#' @param prevalence Prevalence \eqn{P(A)}. Accepts numeric values or
+#'   percentage strings.
+#' @param sensitivity Sensitivity \eqn{P(B|A)}. Accepts numeric values or
+#'   percentage strings.
+#' @param false_positive False positive rate \eqn{P(B|A^-)}. Accepts
+#'   numeric values or percentage strings.
+#' @param index Population size used to scale the contingency table
+#'   (default = 1000).
+#' @param install_dependencies Logical. If `TRUE`, missing packages
+#'   (`dplyr`, `ggplot2`, `tidyr`) are installed automatically. If `FALSE`,
+#'   the function stops with an informative error when a required package
+#'   is not installed.
+#'
+#' @details
+#' The function performs the following steps:
+#' \enumerate{
+#'   \item Validates and converts all probability inputs to decimals.
+#'   \item Computes \eqn{P(B)} using the Law of Total Probability
+#'   \item Computes posterior probability using Bayes' Theorem.
+#'   \item Constructs a 3×3 contingency table with:
+#'     \itemize{
+#'       \item True Positives (TP)
+#'       \item False Positives (FP)
+#'       \item False Negatives (FN)
+#'       \item True Negatives (TN)
+#'     }
+#'   \item Generates three color‑blind‑safe ggplot2 visualizations using
+#'     the Okabe–Ito palette.
+#' }
+#'
+#' @return A named list containing:
+#' \describe{
+#'   \item{posterior_probability}{Posterior probability \eqn{P(A|B)}
+#'     rounded to four decimals.}
+#'   \item{contingency_table}{A 3×3 data frame of scaled counts.}
+#'   \item{barchart}{Grouped bar chart of test results by condition
+#'     (ggplot2 object).}
+#'   \item{heatmap}{Heatmap of the contingency table (ggplot2 object).}
+#'   \item{posterior_plot}{Posterior probability bar plot (ggplot2
+#'     object).}
+#' }
+#'
+#' @examples
+#' # Basic usage
+#' bayes(7, 92, 7)
+#'
+#' # Using decimal inputs
+#' bayes(0.07, 0.92, 0.07)
+#'
+#' # Without automatic package installation
+#' \dontrun{
+#' bayes(7, 92, 7, install_dependencies = FALSE)
+#' }
+#'
+#' @export
 
 bayes <- function(
       prevalence,                       # P(A)

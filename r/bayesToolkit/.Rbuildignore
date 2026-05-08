@@ -1,0 +1,13 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^\.git$
+^\.gitignore$
+^README\.md$
+^LICENSE\.md$
+^LICENSE\.txt$
+^README\.Rmd$
+^\.DS_Store$
+^docs$
+^vignettes/.*\.html$
+^vignettes/.*\.pdf$
+^code-library$
