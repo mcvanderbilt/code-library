@@ -20,7 +20,7 @@ code-library/
 ├── python/                   # Python modules and utilities
 │
 ├── r/                        # All R packages live here
-│   ├── bayesToolkit/         # Bayes' Theorem teaching package
+│   ├── bayesToolkit/         # Bayes' Theorem calculation package
 |   ├── functions/            # Miscellaneous reusable functions and code snippets
 |   ├── objects/              # Deprecating
 │   └── ...
