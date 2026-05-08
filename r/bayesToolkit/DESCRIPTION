@@ -4,7 +4,7 @@ Version: 0.1.0
 Authors@R: 
     person("Matthew", "Vanderbilt", email = "matthew@email.com",
            role = c("aut", "cre"))
-Description: A teaching-focused toolkit for Bayes' Theorem with accessible visualizations.
+Description: A toolkit for Bayes' Theorem calculations with accessible visualizations.
 License: AGPL-3
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
