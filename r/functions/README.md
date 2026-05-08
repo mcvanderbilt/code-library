@@ -28,4 +28,5 @@ All functions in this directory inherit the repository’s **GNU Affero General 
 v3.0 (AGPL‑3)** in [LICENSE](LICENSE) unless otherwise specified.
 
 ## AI Notice
-Some **documentation** has been generated or supplemented with the use of AI.
+Some **documentation** has been generated or supplemented with the use of AI. Any other use is
+specified in code comments.

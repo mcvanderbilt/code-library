@@ -36,4 +36,4 @@ code-library/
 This repository contains a primary [LICENSE](LICENSE), while individual components may be provided under different license. See subfolder LICENSE and/or DESCRIPTION files for details. Where not otherwise noted, the primary [LICENSE](LICENSE) applies.
 
 ## AI Notice
-Some **documentation** has been generated or supplemented with the use of AI.
+Some **documentation** has been generated or supplemented through the use of AI. Any other use is specified in code comments.
