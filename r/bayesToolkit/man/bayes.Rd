@@ -2,7 +2,11 @@
 % Please edit documentation in R/bayes.R
 \name{bayes}
 \alias{bayes}
-\title{Bayes' Theorem Calculator with Color‑Impaired‑Safe Visualizations}
+\title{Bayes' Theorem Calculator with Color‑Impaired‑Safe Visualizations
+Computes the posterior probability \eqn{P(A|B)} using Bayes' Theorem,
+generates a contingency table scaled to a user‑defined population size,
+and produces three color‑blind‑safe ggplot2 visualizations:
+a grouped bar chart, a heatmap, and a posterior probability bar plot.}
 \usage{
 bayes(
   prevalence,
@@ -44,17 +48,12 @@ object).}
 }
 }
 \description{
-Computes the posterior probability \eqn{P(A|B)} using Bayes' Theorem,
-generates a contingency table scaled to a user‑defined population size,
-and produces three color‑blind‑safe ggplot2 visualizations:
-a grouped bar chart, a heatmap, and a posterior probability bar plot.
-}
-\details{
 This function accepts prevalence, sensitivity, and false positive rate
 as decimals, whole numbers, or percentage strings (e.g., \code{"7\%"}, \code{"92"},
 \code{"0.07"}). All inputs are validated and normalized to decimal
 probabilities.
-
+}
+\details{
 The function performs the following steps:
 \enumerate{
 \item Validates and converts all probability inputs to decimals.

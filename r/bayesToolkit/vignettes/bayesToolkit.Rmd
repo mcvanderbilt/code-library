@@ -1,0 +1,8 @@
+---
+title: "bayesToolkit"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{bayesToolkit}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---

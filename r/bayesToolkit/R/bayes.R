@@ -6,7 +6,6 @@
 # -------------------------------------------------------------------------
 
 #' Bayes' Theorem Calculator with Color‑Impaired‑Safe Visualizations
-#'
 #' Computes the posterior probability \eqn{P(A|B)} using Bayes' Theorem,
 #' generates a contingency table scaled to a user‑defined population size,
 #' and produces three color‑blind‑safe ggplot2 visualizations:
@@ -58,6 +57,11 @@
 #'   \item{posterior_plot}{Posterior probability bar plot (ggplot2
 #'     object).}
 #' }
+#'
+#' @import ggplot2
+#' @importFrom utils install.packages
+#' @importFrom dplyr filter
+#' @importFrom tidyr pivot_longer
 #'
 #' @examples
 #' # Basic usage
@@ -310,3 +314,13 @@ bayes <- function(
   )
   
 }
+
+utils::globalVariables(
+  c(
+    "Result",
+    "Count",
+    "Condition",
+    "label",
+    "value"
+  )
+)

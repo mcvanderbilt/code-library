@@ -11,3 +11,5 @@
 ^vignettes/.*\.html$
 ^vignettes/.*\.pdf$
 ^code-library$
+^doc$
+^Meta$
