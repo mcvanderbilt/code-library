@@ -42,7 +42,7 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: JamesIves/github-pages-deploy-action@v4.8.0
         with:
-          clean: false
+          clean: true
           branch: gh-pages
           folder: r/bayesToolkit/docs
-          destination_dir: bayesToolkit
+          target-folder: bayesToolkit
