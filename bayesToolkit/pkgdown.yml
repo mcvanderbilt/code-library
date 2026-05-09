@@ -5,7 +5,7 @@ articles:
   bayes-flu-example: bayes-flu-example.html
   bayesToolkit-intro: bayesToolkit-intro.html
   bayesToolkit: bayesToolkit.html
-last_built: 2026-05-09T00:25Z
+last_built: 2026-05-09T19:37Z
 urls:
-  reference: https://mcvanderbilt.github.io/code-library/reference
-  article: https://mcvanderbilt.github.io/code-library/articles
+  reference: https://mcvanderbilt.github.io/code-library/bayesToolkit/reference
+  article: https://mcvanderbilt.github.io/code-library/bayesToolkit/articles

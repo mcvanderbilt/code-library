@@ -87,8 +87,8 @@ devtools::test()
 
 Released under the **GNU Affero General Public License v3.0 (AGPL‑3)**
 license. See
-[LICENSE](https://mcvanderbilt.github.io/code-library/License) for
-details.
+[LICENSE](https://mcvanderbilt.github.io/code-library/bayesToolkit/License)
+for details.
 
 ## AI Notice
 
