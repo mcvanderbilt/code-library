@@ -4,7 +4,6 @@ repo:
   home: https://github.com/mcvanderbilt/code-library
   source: https://github.com/mcvanderbilt/code-library
   branch: main
-  default_branch: main
   src_path: r/bayesToolkit
 
 template:
