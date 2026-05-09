@@ -45,3 +45,4 @@ jobs:
           clean: false
           branch: gh-pages
           folder: r/bayesToolkit/docs
+          destination_dir: bayesToolkit
