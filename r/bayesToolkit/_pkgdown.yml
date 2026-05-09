@@ -1,7 +1,8 @@
 url: https://mcvanderbilt.github.io/code-library/bayesToolkit/
 
 repo:
-  url: https://github.com/mcvanderbilt/code-library
+  home: https://github.com/mcvanderbilt/code-library
+  source: https://github.com/mcvanderbilt/code-library
   branch: main
   src_path: r/bayesToolkit
 
