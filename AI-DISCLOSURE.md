@@ -4,16 +4,16 @@
 
 ## Summary
 
-Some code and documentation in this repository was developed or supported with AI tools. Every code object states its level of AI involvement in the **AI-Assisted** header field, and every README links here. The author, Matthew Vanderbilt, is responsible for all content regardless of how it was produced.
+Some code and documentation in this repository was developed or supported with AI tools. Every code object states its level of AI involvement in the **AI-Assisted** header field, and every README links here. The author, Matthew C. Vanderbilt, is responsible for all content regardless of how it was produced.
 
 ## Tools that may be used
 
-| Tool | Typical use |
-|---|---|
-| Claude (Anthropic) | Documentation, review, cleanup, refactoring suggestions, governance consistency |
-| GitHub Copilot (Microsoft/GitHub) | In-editor completions and suggestions |
-| Gemini (Google) | Review and explanation |
-| Perplexity | Research and reference lookup |
+| Tool                              | Typical use                                                                     |
+| --------------------------------- | ------------------------------------------------------------------------------- |
+| Claude (Anthropic)                | Documentation, review, cleanup, refactoring suggestions, governance consistency |
+| GitHub Copilot (Microsoft/GitHub) | In-editor completions and suggestions                                           |
+| Gemini (Google)                   | Review and explanation                                                          |
+| Perplexity                        | Research and reference lookup                                                   |
 
 Other tools may be added; the list is updated when they are.
 
@@ -21,13 +21,13 @@ Other tools may be added; the list is updated when they are.
 
 Allowed values are defined in [TAGS.md](TAGS.md). When more than one applies, the highest level is recorded, optionally with the tool in parentheses, e.g., `documentation (Claude)`.
 
-| Value | Meaning |
-|---|---|
-| `none` | No AI involvement. |
-| `review` | AI reviewed code or suggested fixes; the author wrote the code. |
-| `documentation` | AI drafted comments, headers, or READMEs. |
-| `refactor` | AI proposed restructuring that the author reviewed and accepted. |
-| `generated` | AI originated substantial code at the author's explicit request. |
+| Value           | Meaning                                                          |
+| --------------- | ---------------------------------------------------------------- |
+| `none`          | No AI involvement.                                               |
+| `review`        | AI reviewed code or suggested fixes; the author wrote the code.  |
+| `documentation` | AI drafted comments, headers, or READMEs.                        |
+| `refactor`      | AI proposed restructuring that the author reviewed and accepted. |
+| `generated`     | AI originated substantial code at the author's explicit request. |
 
 ## Standards applied to AI-assisted work
 
