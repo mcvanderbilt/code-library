@@ -1,6 +1,6 @@
 // =============================================================================
 // Purpose:      <One or two sentences: what this does and when to use it.>
-// Author:       Matthew Vanderbilt (@mcvanderbilt)
+// Author:       Matthew C. Vanderbilt (@mcvanderbilt)
 // Created:      YYYY-MM-DD
 // Modified:     YYYY-MM-DD — <Short description of change (most recent first)>
 // Version:      1.0
