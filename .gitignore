@@ -1,33 +1,225 @@
-# ------------------------------------------------------
-# Matthew C. Vanderbilt                               --
-# Purpose: Personal code library                      --
-# Copyright: GNU AGPL v3.0                            --
-# ------------------------------------------------------
+# ==============================================================================
+# .gitignore — code-library
+# Repo:     https://github.com/mcvanderbilt/code-library
+# Purpose:  Keep local-only folders, secrets, data, and tool/build artifacts
+#           out of GitHub. Sections are grouped by category; keep new entries
+#           in the matching section rather than appending to the bottom.
+# Note:     .gitignore only affects UNTRACKED files. If something here was
+#           already committed, untrack it with:  git rm -r --cached <path>
+# ==============================================================================
 
-# Ignore R temporary files
+
+# ------------------------------------------------------------------------------
+# 1. Repo structure — local-only folders (see GOVERNANCE.md)
+# ------------------------------------------------------------------------------
+/archive/
+/learning/
+/research/local/
+
+
+# ------------------------------------------------------------------------------
+# 2. Secrets & credentials — never commit, even in private forks
+# ------------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+*.ppk
+credentials*.json
+secrets*.json
+*.secret
+config.local.*
+*.dsn
+.Renviron
+.pgpass
+my.cnf
+
+
+# ------------------------------------------------------------------------------
+# 3. Data files — snippets ship code, not data (protects against PHI/PII leaks)
+#    Small, synthetic, clearly de-identified sample files may be force-added:
+#    git add -f path/to/sample_data.csv
+# ------------------------------------------------------------------------------
+*.csv
+*.tsv
+*.xlsx
+*.xls
+*.sav
+*.dta
+*.sas7bdat
+*.parquet
+*.feather
+*.sqlite
+*.sqlite3
+*.db
+*.rds
+*.RData
+*.rda
+
+
+# ------------------------------------------------------------------------------
+# 4. Operating system files
+# ------------------------------------------------------------------------------
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+# macOS
+.DS_Store
+.AppleDouble
+._*
+# Linux
+*~
+.directory
+
+
+# ------------------------------------------------------------------------------
+# 5. Editors & IDEs
+# ------------------------------------------------------------------------------
+# VS Code (keep shared settings, ignore personal state)
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+*.code-workspace
+.history/
+# RStudio / Posit
+.Rproj.user/
+# JetBrains (PyCharm, DataGrip)
+.idea/
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+# Vim / Emacs
+*.swp
+*.swo
+\#*\#
+
+
+# ------------------------------------------------------------------------------
+# 6. R
+# ------------------------------------------------------------------------------
 .Rhistory
-.RData
-.Rproj.user
-.positai
+.Rapp.history
+.RDataTmp
+*.Rcheck/
+*.tar.gz
+*.knit.md
+*.utf8.md
+*_cache/
+*_files/
+/cache/
+rsconnect/
+renv/library/
+renv/staging/
+renv/local/
+.quarto/
+vignettes/*.html
+vignettes/*.pdf
 
-# Ignore password files
-*.password
 
-# Ignore rendered videos and presented lectures
-/videos/rendered/
-/lectures/presented/
+# ------------------------------------------------------------------------------
+# 7. Python
+# ------------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.conda/
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+htmlcov/
+# Jupyter
+.ipynb_checkpoints/
 
-# Ignore dataset files that are too large for GitHub
-/data/raw/pd_nibrs_datasd.csv
 
-# Ignore personal files
-/personal_notes.md
+# ------------------------------------------------------------------------------
+# 8. SQL & databases
+# ------------------------------------------------------------------------------
+*.bak
+*.mdf
+*.ldf
+*.ndf
+*.trn
+*.dacpac
+*.bacpac
+*.sqlplan
+*.ssmssqlproj.user
 
-# Ignore examples
-/examples/
 
-# Ignore Access database repositories
-/repositories/
+# ------------------------------------------------------------------------------
+# 9. Microsoft Office / VBA / Access
+#    VBA is committed as exported source (.bas, .cls, .frm/.frx), not as
+#    macro-enabled binaries — see GOVERNANCE.md.
+# ------------------------------------------------------------------------------
+~$*
+*.tmp
+*.laccdb
+*.ldb
+*.xlsm
+*.xlsb
+*.xlam
+*.docm
+*.accdb
+*.mdb
+*.accde
 
-# Ignore historical folders and files
-/zDeprecated/
+
+# ------------------------------------------------------------------------------
+# 10. VSTO / .NET build output
+# ------------------------------------------------------------------------------
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+packages/
+*.nupkg
+publish/
+*.vsto
+*.application
+*.manifest
+*.pdb
+TestResults/
+
+
+# ------------------------------------------------------------------------------
+# 11. Web / HTML
+# ------------------------------------------------------------------------------
+node_modules/
+.sass-cache/
+*.map
+.parcel-cache/
+
+
+# ------------------------------------------------------------------------------
+# 12. Logs, temp, and scratch
+# ------------------------------------------------------------------------------
+*.log
+logs/
+*.temp
+tmp/
+temp/
+scratch/
+*.orig
+*.rej
