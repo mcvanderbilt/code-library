@@ -5,6 +5,34 @@
 # Updated: 6 November 2025                                               --
 # -------------------------------------------------------------------------
 
+# ==============================================================================
+# Purpose:      Function for Optimized Installation and Loading of Packages
+# Author:       Matthew C. Vanderbilt (@mcvanderbilt)
+# Created:      2025-11-06
+# Modified:     2026-10-01 Updated header to template; added instructions
+# Version:      1.1
+# Tags:         <2–5 values from TAGS.md, comma-separated>
+# Status:       <stable>
+# Level:        <beginner>
+# AI-Assisted:  <none>
+# Dependencies: <none>
+# License:      See repository global LICENSE
+#               free for academic/personal use with attribution
+#
+# Instructions:
+#  source(
+#    paste0(
+#      "https://raw.githubusercontent.com/",
+#      "mcvanderbilt/code-library/main/",
+#      "r/functions/load-packages.r"
+#    )
+#  )
+#
+#  libraries <- c("dplyr", "ggplot2", "tidyr") # example
+#
+#  load_packages(libraries, run.updates = TRUE)
+# ==============================================================================
+
 load_packages <- function(
   packages.to.load,
   run.updates = TRUE
