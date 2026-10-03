@@ -36,6 +36,7 @@ config.local.*
 .Renviron
 .pgpass
 my.cnf
+.httr-oauth
 
 
 # ------------------------------------------------------------------------------
@@ -108,13 +109,18 @@ $RECYCLE.BIN/
 # ------------------------------------------------------------------------------
 .Rhistory
 .Rapp.history
+.RData
 .RDataTmp
+.Ruserdata
+.Rproj.user/
+.Renviron
 *.Rcheck/
 *.tar.gz
 *.knit.md
 *.utf8.md
 *_cache/
 *_files/
+*_cache/
 /cache/
 rsconnect/
 renv/library/
@@ -123,6 +129,10 @@ renv/local/
 .quarto/
 vignettes/*.html
 vignettes/*.pdf
+*-Ex.R
+docs/
+po/*~
+
 
 
 # ------------------------------------------------------------------------------

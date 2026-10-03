@@ -1,0 +1,15 @@
+# Approved packages - one per line. Lines starting with # are ignored.
+# Base R packages (stats, utils, graphics, grDevices, methods, etc.) are always allowed.
+dplyr
+tidyr
+ggplot2
+readr
+tibble
+stringr
+forcats
+lubridate
+purrr
+janitor
+skimr
+broom
+data.table

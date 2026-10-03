@@ -1,0 +1,20 @@
+# ---- student-grader: never commit student work or grading results ----
+# Paste these lines into the repository's .gitignore (adjust folder names to yours)
+grading_results*
+*_feedback.csv
+*_errors.csv
+*_run_info.txt
+*_class_summary.csv
+*_dryrun.csv
+*_review_*.xlsx
+*_workbook.xlsx
+*_workbook.xlsx.bak
+*_checkpoint_*.csv
+*_PENDING_*.csv
+*_newlayout.csv
+*_console/
+*_saved_files/
+grading_audit_log*.csv
+student-submissions/
+student_submissions/
+submissions/

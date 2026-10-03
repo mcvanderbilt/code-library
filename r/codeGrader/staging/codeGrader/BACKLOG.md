@@ -1,0 +1,176 @@
+# codeGrader backlog
+
+This is the **backlog for codeGrader only**. It lives at `r/codeGrader/BACKLOG.md`, is independent of the code-library `BACKLOG.md` (which does not link to it and does not track these items), and moves with the package when codeGrader gets its own GitHub repository and R package.
+
+* **Last updated:** 2026-10-03 | **Owner:** Matthew C. Vanderbilt
+* **IDs:** `CG-NNN`, numbered from `CG-001`. The `CG-` prefix keeps these distinct from the library's `BL-NNN` items; the one library item referenced here is written "code-library BL-012" (its license item).
+* **Statuses:** Backlog (not started) | In progress | Done | Dropped. Closed items move to "Closed" at the bottom with the date and a one-line outcome.
+* **Adding an item:** next free `CG-` number, same fields as below (Area, Status, Priority, Added, Why, Next step). Anything not being done right now goes here rather than getting lost in chat.
+
+## Index
+
+| ID | Title | Area | Priority | Status |
+|---|---|---|---|---|
+| CG-001 | Confirm Tags values against the code-library `TAGS.md` (Status and Level are set) | Governance | Medium | Backlog |
+| CG-002 | Replace the placeholder codeGrader `LICENSE` once code-library BL-012 is resolved | Governance (`LICENSE`) | High | Backlog |
+| CG-003 | `AI-DISCLOSURE.md` and the AI-Assisted field | Governance (`AI-DISCLOSURE.md`) | Medium | Backlog |
+| CG-004 | Maintainer email in `DESCRIPTION` | Packaging | Medium (needed before `R CMD check` / standalone repo) | Backlog |
+| CG-005 | Student-data patterns in the code-library root `.gitignore` (while codeGrader lives in the library) | Repo hygiene / privacy (library-side change; needs confirmation) | High | Backlog |
+| CG-006 | README convention for a package inside the library | Governance | - | Done |
+| CG-007 | Comment density versus the "students can learn from it" standard | Code quality | Medium | Backlog |
+| CG-008 | First real run and shake-out (nothing has been executed in R yet) | Testing | High | Backlog |
+| CG-009 | Full self-test fixtures | Testing | Medium | Backlog |
+| CG-010 | Continuous integration for the standalone repo | Packaging | Low | Backlog |
+| CG-011 | Windows VM / sandbox for hard isolation | Security | Medium (before grading unfamiliar or large batches) | Backlog |
+| CG-012 | Template-unchanged check | Feature | Medium | Backlog |
+| CG-013 | Correctness checks against an instructor key | Feature | Medium | Backlog |
+| CG-014 | Rmd YAML validation and full knit/render check | Feature | Medium (ANA605) | Backlog |
+| CG-015 | Grades-only export at term end | Feature / records | Medium | Backlog |
+| CG-016 | Saved assignment profile | Feature | Low | Backlog |
+| CG-017 | Rubric file mapping flags to point deductions | Feature | Low | Backlog |
+| CG-018 | Non-interactive entry point | Feature / testing | Medium | Backlog |
+| CG-019 | Optional "load only needed packages" mode | Performance | Low | Backlog |
+| CG-020 | Relative paths for recursive folders | Feature | Low | Backlog |
+| CG-021 | Per-assignment approved lists and data files; `renv` version pinning; numeric ("magic number") hard-coding check | Feature | Low | Backlog |
+| CG-022 | Cascade-error detection beyond plain assignments | Accuracy | Low | Backlog |
+| CG-023 | Decide whether the cohort workbook should be machine-owned only | Design | Low | Backlog |
+| CG-024 | Runtime auto-install of `openxlsx` | Packaging | - | Dropped |
+| CG-025 | Tag a codeGrader release each term; archive cumulative files per term | Operations | Low | Backlog |
+| CG-026 | Move codeGrader to its own repository and R package | Packaging | Planned | Backlog |
+| CG-027 | Optional settings file (JSON or YAML) for defaults | Feature | Low | Backlog |
+
+---
+
+## Dependencies on code-library governance (codeGrader-side work)
+
+*These track what codeGrader needs from the code library's governance files. The governance files themselves (`TAGS.md`, `LICENSE`, `AI-DISCLOSURE.md`, `GOVERNANCE.md`, library `.gitignore`) are changed only after Matthew confirms, and those changes are NOT tracked in the library's `BACKLOG.md` by this file. When codeGrader moves to its own repo, this section becomes codeGrader's own governance tasks.*
+
+### CG-001: Confirm Tags values against the code-library `TAGS.md` (Status and Level are set)
+- **Area:** Governance (code-library `TAGS.md`, read only) | **Status:** Backlog | **Priority:** Medium | **Added:** 2026-10-03
+- **Decided 2026-10-03:** use the code library's root `TAGS.md`; do **not** create a separate `TAGS.md` for codeGrader. **Status = `draft`, Level = `intermediate`**: already applied in every file header and in the README.
+- **Remaining:** the Tags field still reads `[TO CONFIRM against code-library root TAGS.md] education; grading; code-evaluation`.
+- **Next step:** choose Tags from the vocabulary in `D:\GitHub\code-library\TAGS.md` and replace them in every `R/*.R` header and the README. If the vocabulary has no suitable tag, flag it to Matthew rather than inventing one. Do not edit `TAGS.md` without confirmation.
+
+### CG-002: Replace the placeholder codeGrader `LICENSE` once code-library BL-012 is resolved
+- **Area:** Governance (`LICENSE`) | **Status:** Backlog | **Priority:** High | **Added:** 2026-10-03
+- **Why:** `codeGrader/LICENSE` is a placeholder that points to code-library BL-012; `DESCRIPTION` says `License: file LICENSE`. It must be real before the package is published or leaves the library.
+- **Next step:** Paste the final license text; confirm the `License:` field.
+
+### CG-003: `AI-DISCLOSURE.md` and the AI-Assisted field
+- **Area:** Governance (`AI-DISCLOSURE.md`) | **Status:** Backlog | **Priority:** Medium | **Added:** 2026-10-03
+- **Why:** All codeGrader files say "AI-Assisted: Yes - Claude (Anthropic)" and reference `AI-DISCLOSURE.md`, which is still pending. This package was drafted largely by Claude at Matthew's request, an exception to the usual "I write the initial code" rule.
+- **Next step:** Write the disclosure; confirm the wording in file headers.
+
+### CG-004: Maintainer email in `DESCRIPTION`
+- **Area:** Packaging | **Status:** Backlog | **Priority:** Medium (needed before `R CMD check` / standalone repo) | **Added:** 2026-10-03
+- **Why:** `Authors@R` has no email; one is required for a maintainer.
+- **Next step:** Matthew supplies the address; add it to `person(...)`.
+
+### CG-005: Student-data patterns in the code-library root `.gitignore` (while codeGrader lives in the library)
+- **Area:** Repo hygiene / privacy (library-side change; needs confirmation) | **Status:** Backlog | **Priority:** High | **Added:** 2026-10-03
+- **Why:** Grading outputs contain student work and must never be committed. The package `.gitignore` already excludes them; the library root does not necessarily.
+- **Next step:** Propose adding the lines from `docs/gitignore-snippet-for-code-library.txt` to the library `.gitignore`; apply only after Matthew confirms. Becomes moot once codeGrader is its own repo (its own `.gitignore` already covers this).
+
+### CG-007: Comment density versus the "students can learn from it" standard
+- **Area:** Code quality | **Status:** Backlog | **Priority:** Medium | **Added:** 2026-10-03
+- **Why:** The library requires code commented thoroughly enough for students to follow. The codeGrader code has section comments and header blocks, but many functions (especially `scan.R` and `worker.R`) would benefit from more explanatory comments and roxygen-style descriptions of internals.
+- **Next step:** Documentation pass over all `R/` files; consider `@noRd` roxygen blocks for internals.
+
+## Verification and quality
+
+### CG-008: First real run and shake-out (nothing has been executed in R yet)
+- **Area:** Testing | **Status:** Backlog | **Priority:** High | **Added:** 2026-10-03
+- **Why:** All code was written without being run. Sequence: `devtools::load_all()` → `devtools::document()` → `devtools::test()` → `grader_check_setup()` → dry run on real past submissions → one file → whole folder (with instructor solution check).
+- **Next step:** Run it, fix failures; see "Highest-risk areas" in `HANDOFF.md`.
+
+### CG-009: Full self-test fixtures
+- **Area:** Testing | **Status:** Backlog | **Priority:** Medium | **Added:** 2026-10-03
+- **Why:** Tests cover pure functions and one worker run. A fixtures folder of small fake student scripts with known problems and expected results (clean, parse error, missing library, package loop, no seed, hard-coded path, Rmd, crash, cascade errors, timeout) would regression-test the whole pipeline. These are test cases for the grader, not study material.
+- **Next step:** Build `tests/testthat/fixtures/` and an end-to-end test that runs `codeGrader()` non-interactively (needs a non-dialog input path; see CG-018).
+
+### CG-010: Continuous integration for the standalone repo
+- **Area:** Packaging | **Status:** Backlog | **Priority:** Low | **Added:** 2026-10-03
+- **Next step:** `usethis::use_github_action("check-standard")` after the package moves to its own repo.
+
+## Isolation and security
+
+### CG-011: Windows VM / sandbox for hard isolation
+- **Area:** Security | **Status:** Backlog | **Priority:** Medium (before grading unfamiliar or large batches) | **Added:** 2026-10-03
+- **Why:** The grader runs each student file in a separate R process with a temporary working directory and a blocked-call list. That protects the grading run, not the machine: student code still has the instructor's Windows permissions. **Not covered:** writes to absolute paths, reading arbitrary files, network calls other than `download.file`/`browseURL`, `Sys.setenv`, any call not on the blocked list.
+- **Options, cheapest first:** Windows Sandbox (`.wsb`, no network, mapped folders; Windows 11 Pro/Enterprise) → Hyper-V VM with snapshot → Docker (`rocker/r-ver`, `--network none`) → low-privilege Windows account.
+- **Acceptance:** student code cannot read or write outside the mapped input/output folders; no network; one command launches the same workflow; approved packages pre-installed; outputs land in the chosen output folder. Keep the blocked-call list and callr isolation (defense in depth).
+
+## Features deferred
+
+### CG-012: Template-unchanged check
+- **Area:** Feature | **Status:** Backlog | **Priority:** Medium | **Added:** 2026-10-03
+- **Why:** Confirm students changed only the answer areas between the questions in the homework template. Needs a marker convention for answer regions, or a diff that ignores them.
+
+### CG-013: Correctness checks against an instructor key
+- **Area:** Feature | **Status:** Backlog | **Priority:** Medium | **Added:** 2026-10-03
+- **Why:** Version 1 only checks that code runs and follows conventions; Matthew reviews correctness manually. Later: expected objects, dimensions, values, plots; saving plots to PDF/PNG for review.
+
+### CG-014: Rmd YAML validation and full knit/render check
+- **Area:** Feature | **Status:** Backlog | **Priority:** Medium (ANA605) | **Added:** 2026-10-03
+- **Why:** Today `.Rmd` is converted with `knitr::purl()` and its code is run; YAML errors, inline R code, and rendering failures are not tested.
+
+### CG-015: Grades-only export at term end
+- **Area:** Feature / records | **Status:** Backlog | **Priority:** Medium | **Added:** 2026-10-03
+- **Why:** The cohort workbook holds the grades Matthew keeps for reference. A minimal export (assignment, file, score) lets detailed run data (console logs, saved files, error files, audit log) be archived or deleted separately, per records policy.
+
+### CG-016: Saved assignment profile
+- **Area:** Feature | **Status:** Backlog | **Priority:** Low | **Added:** 2026-10-03
+- **Why:** Reload the startup answers (folders, data file, approved list, seed, etc.) for the next run of the same assignment.
+
+### CG-017: Rubric file mapping flags to point deductions
+- **Area:** Feature | **Status:** Backlog | **Priority:** Low | **Added:** 2026-10-03
+- **Why:** Could pre-fill a suggested deduction next to `instructor_score`.
+
+### CG-018: Non-interactive entry point
+- **Area:** Feature / testing | **Status:** Backlog | **Priority:** Medium | **Added:** 2026-10-03
+- **Why:** All inputs currently come from pop-up dialogs, which blocks scripted runs and end-to-end tests. Add an arguments-based path (a list of inputs) that skips the dialogs; keep dialogs as the default.
+
+### CG-019: Optional "load only needed packages" mode
+- **Area:** Performance | **Status:** Backlog | **Priority:** Low | **Added:** 2026-10-03
+- **Why:** Each worker loads all approved packages; a one-time function-to-package map could load only what each student needs. Default must stay "load all approved" for fidelity (masking order).
+
+### CG-020: Relative paths for recursive folders
+- **Area:** Feature | **Status:** Backlog | **Priority:** Low | **Added:** 2026-10-03
+- **Why:** Results are identified by file name, so duplicate names in different sub-folders currently stop the run.
+
+### CG-021: Per-assignment approved lists and data files; `renv` version pinning; numeric ("magic number") hard-coding check
+- **Area:** Feature | **Status:** Backlog | **Priority:** Low | **Added:** 2026-10-03
+
+### CG-022: Cascade-error detection beyond plain assignments
+- **Area:** Accuracy | **Status:** Backlog | **Priority:** Low | **Added:** 2026-10-03
+- **Why:** Only plain `x <- ...`, `assign("x")`, and `for` variables are tracked. A failed `df$col <- ...` or `names(x) <- ...` can leave later errors mislabeled as root errors. Related limits: functions passed as values (`sapply(x, mean)`) and dataset objects are not counted when deciding which packages are necessary; random-number calls inside function definitions are not checked until called.
+
+### CG-023: Decide whether the cohort workbook should be machine-owned only
+- **Area:** Design | **Status:** Backlog | **Priority:** Low | **Added:** 2026-10-03
+- **Why:** The workbook is reloaded and rewritten with `openxlsx`, which can drop charts, pivot tables, or images and may change formatting on older sheets. A rolling `.bak` is kept. Alternative: keep the workbook as a pure output and store instructor scores in a separate file merged by file name.
+- **Provisional decision 2026-10-03:** keep the single cohort workbook as built (one Excel file the grader updates and Matthew types scores into; a rolling `.bak` copy is kept). Do not build the alternative now. Revisit only if something is lost when the workbook is updated.
+
+### CG-027: Optional settings file (JSON or YAML) for defaults
+- **Area:** Feature | **Status:** Backlog | **Priority:** Low | **Added:** 2026-10-03
+- **Why:** Defaults (`workers = 3`, expression timeout 60 s, script timeout 300 s, `recursive`, `save_console`, the random-number function list, the exclude pattern, the seed default 123) are `codeGrader()` arguments with defaults; Matthew confirmed the defaults are fine. Per-course or per-cohort settings (for example ANA600 vs ANA605) could live in a small file kept outside the code.
+- **Next step:** add `settings = NULL` (path to a JSON file or a named list). Precedence: explicit argument > settings file > built-in default. Read with `jsonlite` (Suggests). Fold in CG-016 (saved assignment profile) so one file can hold settings and startup answers.
+
+## Operations
+
+### CG-025: Tag a codeGrader release each term; archive cumulative files per term
+- **Area:** Operations | **Status:** Backlog | **Priority:** Low | **Added:** 2026-10-03
+- **Why:** The run info records commit, branch, tag, and an uncommitted-changes flag, but only a tag gives a human-readable version. Results, errors, feedback, and the audit log grow every run and need a per-term archive/rotation routine that follows records-retention policy.
+
+### CG-026: Move codeGrader to its own repository and R package
+- **Area:** Packaging | **Status:** Backlog | **Priority:** Planned | **Added:** 2026-10-03
+- **Next step:** Follow the checklist in `codeGrader/README.md` ("Moving this to its own repository / package"); depends on CG-001, CG-002, CG-004 (and CG-003 if required).
+
+---
+
+## Closed
+
+### CG-006: README convention for a package inside the library: Done 2026-10-03
+- **Outcome:** Matthew decided that a unique package-level `README.md` at `r/codeGrader/` is required (it exists). No per-file READMEs and no `GOVERNANCE.md` change are needed.
+
+### CG-024: Runtime auto-install of `openxlsx`: Dropped 2026-10-03
+- **Outcome:** accepted as is. `openxlsx` (a Suggests dependency) installs on demand with a message. Revisit only if the package is ever prepared for CRAN.

@@ -1,0 +1,35 @@
+Package: codeGrader
+Type: Package
+Title: Automated Execution Checks for Student R Homework
+Version: 1.6.1
+Authors@R: 
+    person(given = "Matthew C.", family = "Vanderbilt", role = c("aut", "cre"))
+Description: Quickly checks whether student homework submitted as R scripts (.R) or
+    R Markdown files (.Rmd) runs without error. Each file runs in its own isolated R
+    process with approved packages preloaded, risky calls neutralized, and data-import
+    calls redirected to an instructor-chosen data file. Reports errors with their
+    location and failing function (separating root errors from follow-on errors),
+    audits package use against an approved list, checks that set.seed() precedes
+    random-number code, flags hard-coded file paths, drafts feedback, and keeps
+    cumulative CSV logs and a cohort Excel workbook with one worksheet per assignment.
+URL: https://github.com/mcvanderbilt/code-library
+BugReports: https://github.com/mcvanderbilt/code-library/issues
+License: file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+Depends: 
+    R (>= 4.0.0)
+Imports: 
+    callr,
+    grDevices,
+    knitr,
+    stats,
+    tools,
+    utils
+Suggests: 
+    openxlsx,
+    rstudioapi,
+    testthat (>= 3.0.0),
+    withr
+Config/testthat/edition: 3
+Config/roxygen2/version: 8.0.0

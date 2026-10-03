@@ -1,0 +1,8 @@
+^docs$
+^staging$
+^BACKLOG\.md$
+^README\.md$
+^\.Rproj\.user$
+^.*\.Rproj$
+^\.github$
+^\.gitignore$
