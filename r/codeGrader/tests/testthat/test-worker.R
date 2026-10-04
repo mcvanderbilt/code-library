@@ -32,3 +32,24 @@ test_that("worker runs a clean script, redirects imports, and catches errors", {
   expect_length(w2$errors, 2)
   expect_equal(w2$n_ok, 2L)
 })
+
+test_that("functions resolve against the student's own search path, not every approved package", {
+  skip_on_cran()
+  skip_if_not_installed("callr")
+  td <- withr::local_tempdir()
+  data_csv <- file.path(td, "data.csv")
+  utils::write.csv(data.frame(x = 1:3), data_csv, row.names = FALSE)
+  f <- file.path(td, "sd.R")
+  writeLines("s <- sd(c(1, 2, 3))", f)
+  rd <- file.path(td, "run_sd"); dir.create(rd)
+  # no student_pkgs: sd() must resolve to stats even if mosaic (which masks sd) is approved
+  w <- callr::r(grader_worker,
+                args = list(code_path = f, data_file = data_csv, approved = c("mosaic", "ggplot2"),
+                            base_pkgs = grader_base_pkgs, fn_names = c("sd", "ggplot"),
+                            expr_timeout_sec = 30, seed_value = 123L, seed_inject_idx = integer(),
+                            student_pkgs = character()),
+                wd = rd, timeout = 120)
+  expect_equal(unname(w$fn_pkg["sd"]), "stats")
+  expect_true(is.na(w$fn_pkg["ggplot"]))          # not loaded by the student -> unresolved
+  expect_length(w$errors, 0)
+})

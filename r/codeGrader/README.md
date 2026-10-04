@@ -22,11 +22,13 @@ Supported submissions: `.R` scripts (National University ANA600) and `.Rmd` file
 ## What it does
 
 * Runs every file in its **own R process** (several at once), so one broken or looping student file never stops the run.
-* **Approved packages are loaded for every student**, so approved functions always resolve. Student `library()` / `install.packages()` calls are *never executed*; they are only analysed and reported: unapproved packages, packages used but not loaded or not installed in the script, packages loaded but unused, and package lists built in loops (resolved when they are constants).
+* **Packages are attached exactly as the student loads them** (the approved ones named in their own `library()` / `require()` calls, in the student's order), so masking and missing packages behave as they would for the student. The student's `library()` / `install.packages()` calls themselves are *never executed*; they are analysed and reported: unapproved packages, packages used but never loaded (named via the approved packages' export lists) or never installed in the script, packages loaded but unused, packages loaded or installed redundantly (`library(ggplot2)` after `library(tidyverse)`), the same package loaded more than once, package set-up that comes after other code has run (a convention note, not an error), and package lists built in loops (resolved when they are constants). Installing or loading `tidyverse` counts as installing or loading every package it attaches.
 * `setwd()`, `file.choose()`, system commands, deletion, and `quit()` are replaced with harmless stand-ins and logged. Every `read.csv()`-style import is redirected to the **data file you choose**.
-* Evaluates the **whole script**, not only up to the first error, and separates **root errors** from **cascade errors** (follow-on failures). Reports the line range (or Rmd line and chunk) and the failing function.
+* Evaluates the **whole script**, not only up to the first error. A **syntax error** no longer stops the check: the unreadable expression is skipped (reported with its line range) and everything else is still scanned and run. Root errors are separated from **cascade errors** (follow-on failures) and from **repeats** of the same error later in the script, which are reported once. Reports the line range (or Rmd line and chunk) and the failing function.
 * `set.seed()` calls run a **standard seed you enter**, never the student's value. Random-number code with no earlier `set.seed()` in its code block is flagged, and the grader runs the seed itself so the script still executes.
 * Flags hard-coded file paths, file names, and URLs written directly inside function calls (values stored in a variable first are fine; numbers such as `round()` digits are fine).
+* Convention notes (never errors): numbered template sections with no code under them; `png()`/`pdf()` opened without `dev.off()`; `attach()`, `View()`, mid-script `rm(list = ls())`, unguarded `install.packages()`; and, with `codeGrader(style = TRUE)`, a small `lintr` pass (naming, `<-`, operator spacing, commas, line length, `T`/`F`).
+* When an assignment requires a saved file, you can name the required file(s); the grader checks that a file with that name was actually written.
 * Drafts feedback text per student (for you to review and paste into the student information system by hand).
 * Appends to **cumulative CSV files** and a **cohort workbook** with one worksheet per assignment (your typed scores/comments are preserved on re-runs). A permanent audit log records the grader version, Git commit, seed, and file fingerprints (MD5) for every graded file.
 
@@ -52,7 +54,7 @@ Recommended first-run sequence: `grader_check_setup()` → a **dry run** of the 
 | File | Contents |
 |---|---|
 | `<name>.csv` | One row per file per run (cumulative); the system of record |
-| `<name>_errors.csv` | Every error with location, function, and root/cascade type |
+| `<name>_errors.csv` | Every error with location, function, and type (syntax / root / cascade / repeat) |
 | `<name>_feedback.csv` | Draft feedback per student, with a blank `instructor_comments` column |
 | `<name>_class_summary.csv` | Class-level counts per run |
 | `<name>_workbook.xlsx` | Cohort workbook: sheet "Assignment N" per assignment plus "Class summaries" |

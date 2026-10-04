@@ -2,8 +2,8 @@
 # Purpose:      Pop-up dialogs asked once at the start of a grading run (mode, seed, folders, data file, approved list).
 # Author:       Matthew C. Vanderbilt (@mcvanderbilt)
 # Created:      2026-10-03
-# Modified:     2026-10-03 — Moved into code-library r/codeGrader; header aligned to GOVERNANCE.md
-# Version:      1.6
+# Modified:     2026-10-03 — Prompt for the file name(s) an assignment requires students to save
+# Version:      1.7.0
 # Tags:         automation, data-validation, reporting, teaching
 # Status:       draft
 # Level:        intermediate
@@ -102,7 +102,7 @@ grader_collect_inputs <- function() {
   mode <- c("folder", "single", "rerun", "dry")[match(ans, modes)]
 
   only_files <- NULL; rerun_of <- NULL; seed_value <- NA_integer_; data_file <- NA_character_
-  expect_saved <- NA; solution_file <- NULL
+  expect_saved <- NA; solution_file <- NULL; required_files <- character()
 
   if (mode == "rerun") {
     message("Select the PREVIOUS results CSV (the main file, not _errors / _feedback)")
@@ -172,6 +172,13 @@ grader_collect_inputs <- function() {
   if (!is.null(approved_file) && mode != "dry") {
     expect_saved <- grader_ask_yes_no("Saved files",
       "Does this assignment require students to SAVE a file (e.g., write.csv, ggsave)?")
+    if (isTRUE(expect_saved)) {
+      rf <- grader_ask_text("Required file name(s)",
+        "File name(s) the assignment requires, separated by commas (e.g. wk1Data.comb08.hist.png). Wildcards are allowed (*.png). Leave blank to accept any saved file.",
+        "")
+      if (!is.null(rf) && nzchar(trimws(rf))) required_files <- trimws(strsplit(rf, ",")[[1]])
+      required_files <- required_files[nzchar(required_files)]
+    }
     if (mode != "single" &&
         grader_ask_yes_no("Instructor solution", "Check an instructor solution file first?\n(It should run cleanly; if not, the data file, approved list or grader probably needs fixing.)")) {
       solution_file <- grader_pick("file", "Select the instructor solution (.R / .Rmd)")
@@ -181,6 +188,6 @@ grader_collect_inputs <- function() {
 
   list(mode = mode, seed_value = seed_value, script_folder = script_folder, data_file = data_file,
        output_folder = output_folder, output_name = nm, approved_file = approved_file,
-       expect_saved = expect_saved, only_files = only_files, rerun_of = rerun_of,
-       solution_file = solution_file)
+       expect_saved = expect_saved, required_files = required_files, only_files = only_files,
+       rerun_of = rerun_of, solution_file = solution_file)
 }

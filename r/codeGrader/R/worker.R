@@ -1,9 +1,9 @@
 # =============================================================================
-# Purpose:      Runs ONE student script in its own fresh R process (via callr): preloads approved packages, neutralizes risky calls, redirects data imports, runs expression by expression.
+# Purpose:      Runs ONE student script in its own fresh R process (via callr): attaches the packages the student loaded (in their order), neutralizes risky calls, redirects data imports, runs expression by expression.
 # Author:       Matthew C. Vanderbilt (@mcvanderbilt)
 # Created:      2026-10-03
-# Modified:     2026-10-03 — Moved into code-library r/codeGrader; header aligned to GOVERNANCE.md
-# Version:      1.6
+# Modified:     2026-10-03 — Attach only the student's own library() packages in their order; export map built with the attach map; dev.off()/graphics.off() stand-ins and devices-left-open count
+# Version:      1.7.0
 # Tags:         automation, data-validation, reporting, teaching
 # Status:       draft
 # Level:        intermediate
@@ -14,14 +14,21 @@
 # =============================================================================
 
 grader_worker <- function(code_path, data_file, approved, base_pkgs, fn_names,
-                          expr_timeout_sec, seed_value, seed_inject_idx) {
+                          expr_timeout_sec, seed_value, seed_inject_idx,
+                          student_pkgs = character()) {
 
   out <- list(preload_failed = character(), fn_pkg = character(), errors = list(),
               n_ok = 0L, n_warn = 0L, n_exprs = NA_integer_, elapsed = NA_real_,
-              blocked = character(), reads = 0L, files_written = character())
+              blocked = character(), reads = 0L, files_written = character(),
+              attached = character(), devices_left_open = 0L)
 
-  # ---- 1. load every approved package ---------------------------------
-  for (p in approved) {
+  # ---- 1. attach the packages the STUDENT loads, in the student's order --
+  # Only approved packages the student's own library()/require() calls name
+  # are attached (the caller intersects the scanned list with the approved
+  # list). Attaching them in the student's order reproduces the student's
+  # search path, so masking (e.g. mosaic::sd over stats::sd) and missing
+  # packages behave exactly as they would when the student runs the script.
+  for (p in student_pkgs) {
     ok <- tryCatch({
       suppressWarnings(suppressPackageStartupMessages(
         library(p, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))
@@ -29,8 +36,12 @@ grader_worker <- function(code_path, data_file, approved, base_pkgs, fn_names,
     }, error = function(e) FALSE)
     if (!ok) out$preload_failed <- c(out$preload_failed, p)
   }
+  out$attached <- sub("^package:", "", grep("^package:", search(), value = TRUE))
 
   # ---- 2. which package does each called function resolve to? ---------
+  # NA = not found on the student's search path (the call will fail with
+  # "could not find function"); the main session then looks the name up in
+  # the approved packages' export map to say WHICH package was not loaded.
   if (length(fn_names)) {
     out$fn_pkg <- vapply(fn_names, function(fn) {
       f <- tryCatch(utils::find(fn, mode = "function"), error = function(e) character())
@@ -94,12 +105,34 @@ grader_worker <- function(code_path, data_file, approved, base_pkgs, fn_names,
   env <- new.env(parent = globalenv())
   for (nm in names(blocked_fns)) assign(nm, blocked_fns[[nm]], envir = env)
   for (nm in c("read.csv", "read.csv2", "read.delim", "read.table")) assign(nm, all_readers[[nm]], envir = env)
-  if ("readr" %in% approved && !("readr" %in% out$preload_failed)) {
+  # readr / data.table readers are redirected only when the student actually
+  # attached those packages (directly or via tidyverse); otherwise a bare
+  # read_csv() fails with "could not find function", as it would for the student.
+  if ("readr" %in% out$attached) {
     for (nm in c("read_csv", "read_delim")) assign(nm, all_readers[[nm]], envir = env)
   }
-  if ("data.table" %in% approved && !("data.table" %in% out$preload_failed)) {
+  if ("data.table" %in% out$attached) {
     assign("fread", all_readers[["fread"]], envir = env)
   }
+
+  # Graphics devices. The grader keeps one null pdf device open so plots never
+  # hit the screen. dev.off()/graphics.off() stand-ins behave as they would for
+  # the student: closing when no student device is open is an error (R's own
+  # message is "cannot shut down device 1 (the null device)"), and the grader's
+  # device is never closed by student code.
+  base_dev <- NULL
+  assign("dev.off", function(which = grDevices::dev.cur()) {
+    open <- setdiff(grDevices::dev.list(), base_dev)
+    if (!length(open)) {
+      stop("dev.off(): no graphics device is open to close (there is no matching png()/pdf()/jpeg() call before it)",
+           call. = FALSE)
+    }
+    grDevices::dev.off(which)
+  }, envir = env)
+  assign("graphics.off", function() {
+    for (d in setdiff(grDevices::dev.list(), base_dev)) grDevices::dev.off(d)
+    invisible(NULL)
+  }, envir = env)
 
   # pkg::fn -> block installers, enforce the approved list, redirect readers
   assign("::", function(pkg, name) {
@@ -126,6 +159,7 @@ grader_worker <- function(code_path, data_file, approved, base_pkgs, fn_names,
   con <- file(file.path(getwd(), ".grader_console.txt"), open = "wt")
   sink(con)
   grDevices::pdf(NULL)
+  base_dev <- grDevices::dev.cur()
   t0 <- Sys.time()
 
   for (i in seq_along(exprs)) {
@@ -166,6 +200,7 @@ grader_worker <- function(code_path, data_file, approved, base_pkgs, fn_names,
   out$elapsed <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
   while (sink.number() > 0) sink()
   close(con)
+  out$devices_left_open <- length(setdiff(grDevices::dev.list(), base_dev))   # png()/pdf() never closed
   grDevices::graphics.off()
   out$blocked <- ctx$blocked
   out$reads   <- ctx$reads
@@ -173,18 +208,28 @@ grader_worker <- function(code_path, data_file, approved, base_pkgs, fn_names,
   out
 }
 
-# One-time: which packages does each approved package attach? (e.g., tidyverse
-# attaches dplyr, ggplot2, ...). Used to avoid false "package not loaded" flags.
-grader_attach_map <- function(pkgs) {
-  out <- list()
+# One-time, per approved package (each in a throw-away R process):
+#   attach  - which packages does library(p) put on the search path?
+#             (tidyverse attaches dplyr, ggplot2, ...). Used so that
+#             library(tidyverse) counts as loading ggplot2, and so that a
+#             separate library(ggplot2) after it is reported as redundant.
+#   exports - which function names does p export? Used to name the package a
+#             student forgot to load when a call could not be resolved.
+grader_pkg_maps <- function(pkgs) {
+  attach <- list(); exports <- list()
   for (p in pkgs) {
     res <- tryCatch(callr::r(function(p) {
       before <- search()
       suppressWarnings(suppressPackageStartupMessages(
         library(p, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))
-      sub("^package:", "", setdiff(search(), before))
+      list(attached = sub("^package:", "", setdiff(search(), before)),
+           exports  = getNamespaceExports(p))
     }, args = list(p = p), timeout = 120), error = function(e) NULL)
-    out[[p]] <- unique(c(p, res))
+    attach[[p]]  <- unique(c(p, res$attached))
+    exports[[p]] <- unique(res$exports)
   }
-  out
+  list(attach = attach, exports = exports)
 }
+
+# Kept for callers that only need the attach map.
+grader_attach_map <- function(pkgs) grader_pkg_maps(pkgs)$attach

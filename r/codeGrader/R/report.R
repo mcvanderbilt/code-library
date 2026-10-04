@@ -2,8 +2,8 @@
 # Purpose:      Output table template, cumulative CSV appends, draft feedback, audit log, class summary, and the cohort Excel workbook.
 # Author:       Matthew C. Vanderbilt (@mcvanderbilt)
 # Created:      2026-10-03
-# Modified:     2026-10-03 — Moved into code-library r/codeGrader; header aligned to GOVERNANCE.md
-# Version:      1.6
+# Modified:     2026-10-03 — New result columns and feedback sentences (syntax/repeat errors, redundant/repeated loads, set-up order, empty sections, graphics devices, practice notes, style, required files)
+# Version:      1.7.0
 # Tags:         automation, data-validation, reporting, teaching
 # Status:       draft
 # Level:        intermediate
@@ -17,15 +17,19 @@ grader_row_template <- function() {
   list(
     file_role = "student", file = "", file_md5 = "", file_type = "", status = "",
     pct_exprs_ok = NA_real_, exprs_total = NA_integer_, exprs_ok = NA_integer_,
-    n_errors = 0L, n_root_errors = 0L, n_cascade_errors = 0L, pct_exprs_no_root_error = NA_real_,
+    n_errors = 0L, n_root_errors = 0L, n_cascade_errors = 0L, n_repeat_errors = 0L, n_syntax_errors = 0L,
+    pct_exprs_no_root_error = NA_real_,
     n_warnings = NA_integer_, runtime_sec = NA_real_,
     first_error_location = "", first_error_function = "", first_error = "", root_error_summary = "",
     library_flags = "", other_flags = "",
     pkgs_loaded = "", pkgs_install_attempted = "", pkgs_necessary = "",
     pkgs_necessary_not_loaded = "", pkgs_necessary_no_install_attempt = "",
-    pkgs_loaded_not_necessary = "", pkgs_unapproved = "",
+    pkgs_loaded_not_necessary = "", pkgs_loaded_redundant = "", pkgs_installed_redundant = "",
+    pkgs_loaded_repeated = "", pkgs_setup_after_code = "", pkgs_unapproved = "",
     set_seed_calls = NA_integer_, rng_blocks = NA_integer_, rng_blocks_missing_seed = "",
     hardcode_check = "", hardcoded_calls = "",
+    sections_without_code = "", graphics_devices = "", graphics_device_note = "", practice_notes = "",
+    style_issues = NA_integer_, style_examples = "", required_files_missing = "",
     data_reads_redirected = NA_integer_, blocked_calls = "", other_data_calls = "",
     files_saved = "", console_log = "", feedback_text = ""
   )
@@ -112,14 +116,23 @@ grader_feedback_text <- function(r) {
   if (st == "Grader error" || st == "Rmd conversion error") {
     return("The automated check could not be completed for this file; your instructor will review it manually.")
   }
+  n_syn <- if (is.null(r$n_syntax_errors) || is.na(r$n_syntax_errors)) 0L else r$n_syntax_errors
+  n_rep <- if (is.null(r$n_repeat_errors) || is.na(r$n_repeat_errors)) 0L else r$n_repeat_errors
   if (st == "Parse error") {
-    s <- c(s, sprintf("Your file could not be read by R because of a syntax error (%s).", r$first_error))
+    s <- c(s, sprintf("Your file could not be read by R because of a syntax error (%s), so nothing in it could be checked.", r$first_error))
     if (grepl("SMART_QUOTES", fl)) s <- c(s, "It contains curly quotes, usually pasted from Word or a web page; use straight quotes instead.")
   } else if (st == "Process failed or timed out") {
     s <- c(s, "Your script did not finish running (it crashed or exceeded the time limit).")
   } else if (st == "Executed with errors") {
-    follow <- if (r$n_cascade_errors > 0) sprintf(" (plus %d follow-on error(s) caused by them)", r$n_cascade_errors) else ""
+    extra <- c(if (r$n_cascade_errors > 0) sprintf("%d follow-on error(s) caused by them", r$n_cascade_errors),
+               if (n_rep > 0) sprintf("%d repeat(s) of the same error later in the script", n_rep))
+    follow <- if (length(extra)) sprintf(" (plus %s)", paste(extra, collapse = " and ")) else ""
     s <- c(s, sprintf("Your script has %d independent error(s)%s: %s.", r$n_root_errors, follow, r$root_error_summary))
+    if (n_syn > 0) {
+      s <- c(s, sprintf("%d of these %s syntax error(s) R cannot read at all; those lines were skipped so the rest of your script could still be checked.",
+                        n_syn, if (n_syn == 1) "is a" else "are"))
+      if (grepl("SMART_QUOTES", fl)) s <- c(s, "Your file contains curly quotes, usually pasted from Word or a web page; use straight quotes instead.")
+    }
   } else if (st == "Executed without error") {
     s <- c(s, "Your script ran from start to finish without errors.")
   }
@@ -131,14 +144,33 @@ grader_feedback_text <- function(r) {
     s <- c(s, sprintf("Your script does not include code to install: %s.", r$pkgs_necessary_no_install_attempt))
   if (nzchar(r$pkgs_loaded_not_necessary))
     s <- c(s, sprintf("These packages are loaded but not used: %s.", r$pkgs_loaded_not_necessary))
+  if (nzchar(r$pkgs_loaded_redundant))
+    s <- c(s, sprintf("These packages are loaded separately although another package you load already includes them: %s. One library() call for the larger package is enough.", r$pkgs_loaded_redundant))
+  if (nzchar(r$pkgs_installed_redundant))
+    s <- c(s, sprintf("These packages are installed separately although another package you install already includes them: %s.", r$pkgs_installed_redundant))
+  if (nzchar(r$pkgs_loaded_repeated))
+    s <- c(s, sprintf("library() is called more than once for the same package: %s. Load each package once, at the top of the script.", r$pkgs_loaded_repeated))
+  if (nzchar(r$pkgs_setup_after_code))
+    s <- c(s, sprintf("Install and load all packages at the start of your script, before any other code. These package calls come after other code has already run: %s.", r$pkgs_setup_after_code))
   if (grepl("LIBRARY_LIST_UNRESOLVED", fl))
     s <- c(s, "Your package list could not be read completely by the automated check; your instructor will verify it.")
   if (nzchar(r$rng_blocks_missing_seed))
     s <- c(s, sprintf("Code that generates random numbers (%s) has no set.seed() earlier in its code block. Add set.seed() before random code so results can be reproduced.", r$rng_blocks_missing_seed))
   if (nzchar(r$hardcoded_calls))
     s <- c(s, sprintf("Hard-coded file paths or names appear directly in function calls (%s). Store such values in a variable first, then pass the variable to the function.", r$hardcoded_calls))
+  if (nzchar(r$sections_without_code))
+    s <- c(s, sprintf("No code was found under: %s.", r$sections_without_code))
+  if (nzchar(r$graphics_device_note))
+    s <- c(s, sprintf("A graphics file device is opened but not closed with dev.off() (%s). Until dev.off() runs the image file is incomplete and later plots are drawn into it.", r$graphics_device_note))
+  if (nzchar(r$practice_notes))
+    s <- c(s, sprintf("Coding practice: %s.", r$practice_notes))
+  if (!is.null(r$style_issues) && !is.na(r$style_issues) && r$style_issues > 0)
+    s <- c(s, sprintf("Style: %d issue(s) against the course conventions, for example %s.", r$style_issues, r$style_examples))
   if (grepl("EXPECTED_FILE_NOT_SAVED", fl))
     s <- c(s, "No saved output file was found, but this assignment requires one.")
+  if (nzchar(r$required_files_missing))
+    s <- c(s, sprintf("The assignment requires a saved file named %s, but your script saved %s instead.", r$required_files_missing,
+                      if (nzchar(r$files_saved)) r$files_saved else "nothing by that name"))
   if (grepl("UNEXPECTED_FILE_SAVED", fl))
     s <- c(s, sprintf("Your script saved a file (%s) that this assignment does not require.", r$files_saved))
   s <- c(s, "These automated checks cover whether your code runs and follows course conventions; the accuracy of your results is reviewed separately by your instructor.")
@@ -220,9 +252,20 @@ grader_class_summary <- function(results, err_df, run_id, assignment = NA_real_)
   add_counts("flags", count_items(paste(st$library_flags, st$other_flags, sep = "; "), ";"))
   add_counts("unapproved packages", count_items(st$pkgs_unapproved, ","))
   add_counts("necessary but not loaded", count_items(st$pkgs_necessary_not_loaded, ","))
+  add_counts("loaded redundantly", count_items(st$pkgs_loaded_redundant, ","))
+  add_counts("loaded more than once", count_items(st$pkgs_loaded_repeated, ","))
+  add("code practices", "package install/load after other code", sum(nzchar(st$pkgs_setup_after_code)))
+  add("code practices", "numbered section with no code", sum(nzchar(st$sections_without_code)))
+  add("code practices", "graphics device left open", sum(nzchar(st$graphics_device_note)))
+  add("code practices", "coding-practice notes", sum(nzchar(st$practice_notes)))
+  if ("style_issues" %in% names(st) && any(!is.na(st$style_issues)))
+    add("code practices", "style issues (lintr)", NA, sprintf("files with issues: %d; median %.0f per file",
+        sum(st$style_issues > 0, na.rm = TRUE), stats::median(st$style_issues, na.rm = TRUE)))
+  add("code practices", "required saved file missing", sum(nzchar(st$required_files_missing)))
+  if ("n_syntax_errors" %in% names(st)) add("status", "files with syntax errors skipped", sum(st$n_syntax_errors > 0, na.rm = TRUE))
 
   if (!is.null(err_df) && nrow(err_df)) {
-    e <- err_df[err_df$error_type == "root" & err_df$file %in% st$file, , drop = FALSE]
+    e <- err_df[err_df$error_type %in% c("root", "syntax") & err_df$file %in% st$file, , drop = FALSE]
     if (nrow(e)) {
       msg <- gsub("'[^']*'", "'<x>'", e$message)
       msg <- gsub("\"[^\"]*\"", "\"<x>\"", msg)
@@ -281,7 +324,9 @@ grader_format_results_sheet <- function(wb, name, df, st) {
     cf("status", st$bad, txt)
   for (txt in c("Unsupported", "Dry run")) cf("status", st$grey, txt)
   cf("hardcode_check", st$bad, "Fail")
-  for (nm in c("library_flags", "other_flags", "pkgs_unapproved", "rng_blocks_missing_seed", "hardcoded_calls")) {
+  for (nm in c("library_flags", "other_flags", "pkgs_unapproved", "pkgs_loaded_redundant", "pkgs_installed_redundant",
+               "pkgs_loaded_repeated", "pkgs_setup_after_code", "rng_blocks_missing_seed", "hardcoded_calls",
+               "sections_without_code", "graphics_device_note", "practice_notes", "style_examples", "required_files_missing")) {
     j <- which(names(df) == nm)
     if (length(j)) cf(nm, st$warn, sprintf("LEN(%s2)>0", openxlsx::int2col(j)), type = "expression")
   }

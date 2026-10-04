@@ -2,8 +2,8 @@
 # Purpose:      Per-file pipeline: prepare (Rmd conversion, parse, scan), run in parallel workers, finalize results; dry-run mode.
 # Author:       Matthew C. Vanderbilt (@mcvanderbilt)
 # Created:      2026-10-03
-# Modified:     2026-10-03 — Moved into code-library r/codeGrader; header aligned to GOVERNANCE.md
-# Version:      1.6
+# Modified:     2026-10-03 — Parse recovery; student-order package checks; redundant/repeated loads; set-up order; empty sections; graphics devices; practice notes; lintr style pass; required saved files; repeated root errors once
+# Version:      1.7.0
 # Tags:         automation, data-validation, reporting, teaching
 # Status:       draft
 # Level:        intermediate
@@ -60,17 +60,36 @@ grader_prepare_file <- function(f, ctx) {
     row$first_error <- "The file could not be read as text"
     return(list(done = TRUE, row = row, errors = NULL))
   }
-  parse_err <- NULL
-  exprs <- tryCatch(parse(file = code_path, keep.source = TRUE, encoding = "UTF-8"),
-                    error = function(e) { parse_err <<- gsub("\\s+", " ", conditionMessage(e)); NULL })
-  if (!is.null(parse_err)) {
-    if (is_rmd) unlink(code_path)
-    row$status <- "Parse error"; row$n_errors <- 1L; row$n_root_errors <- 1L
-    row$first_error <- parse_err
+  # Parse with recovery: a syntax error no longer stops the check. The lines
+  # of each unreadable expression are replaced by comments (line numbers are
+  # preserved) and recorded; everything else is still scanned and executed.
+  pr <- grader_parse_recover(code_lines, fname)
+  exprs <- pr$exprs
+  syntax <- pr$errors                 # data.frame: first, last, message, text
+  syntax$label <- character(nrow(syntax))
+  if (nrow(syntax)) {
+    # section label (nearest "# 7. BAR CHART ----" header above) for each skipped range
+    hdr <- grep("^[[:space:]]*#.*(-{4,}|={4,}|#{4,})", code_lines)
+    syntax$label <- vapply(syntax$first, function(l) {
+      h <- hdr[hdr < l]
+      if (length(h)) grader_header_label(code_lines[max(h)]) else ""
+    }, character(1))
     if (any(grepl("[\u2018\u2019\u201c\u201d]", code_lines))) {
       row$other_flags <- "SMART_QUOTES (curly quotes pasted from Word/web)"
     }
-    return(list(done = TRUE, row = row, errors = NULL))
+    if (length(exprs) == 0) {         # nothing survived: old-style parse-error row
+      if (is_rmd) unlink(code_path)
+      row$status <- "Parse error"
+      row$n_errors <- nrow(syntax); row$n_root_errors <- nrow(syntax); row$n_syntax_errors <- nrow(syntax)
+      row$first_error <- syntax$message[1]
+      return(list(done = TRUE, row = row, errors = NULL))
+    }
+    # the worker must run the cleaned code, never the unparseable original
+    clean_path <- tempfile(fileext = ".R")
+    writeLines(pr$clean_lines, clean_path, useBytes = TRUE)
+    if (is_rmd) unlink(code_path)
+    code_path <- clean_path
+    code_lines <- pr$clean_lines
   }
 
   # If the static scan itself fails, still run the script (flagged STATIC_SCAN_FAILED)
@@ -85,10 +104,118 @@ grader_prepare_file <- function(f, ctx) {
                      error = function(e) { info$note <- "purled"; info })
   }
 
+  # optional style pass (lintr; static, nothing executed). Runs on the original
+  # .Rmd so chunk line numbers are right, unless syntax errors forced a cleaned copy.
+  style <- NULL
+  if (isTRUE(ctx$style)) {
+    lint_path <- if (is_rmd && nrow(syntax) == 0) f else code_path
+    style <- grader_style_check(lint_path, ctx)
+  }
+
   run_dir <- tempfile("grader_run_"); dir.create(run_dir)
   if (!isTRUE(ctx$dry)) file.copy(ctx$data_file, run_dir)
   list(done = FALSE, f = f, fname = fname, is_rmd = is_rmd, code_path = code_path,
+       code_tmp = is_rmd || nrow(syntax) > 0, syntax = syntax, style = style,
        sc = sc, info = info, run_dir = run_dir, row = row, scan_failed = scan_failed)
+}
+
+# ---------------------------------------------------------------------
+# Style check with lintr (CG-035): a small, fixed set of linters chosen for
+# course conventions. Returns list(n, examples, failed) or NULL if lintr is
+# missing. Nothing from the student file is executed.
+# ---------------------------------------------------------------------
+grader_style_check <- function(path, ctx, max_examples = 5L) {
+  if (!requireNamespace("lintr", quietly = TRUE)) return(NULL)
+  res <- tryCatch({
+    linters <- list(
+      lintr::object_name_linter(styles = ctx$style_naming),
+      lintr::assignment_linter(),
+      lintr::infix_spaces_linter(),
+      lintr::commas_linter(),
+      lintr::line_length_linter(as.integer(ctx$style_line_length)),
+      lintr::T_and_F_symbol_linter()
+    )
+    lintr::lint(path, linters = linters, parse_settings = FALSE)
+  }, error = function(e) e)
+  if (inherits(res, "error")) {
+    return(list(n = NA_integer_, examples = "", failed = gsub("\\s+", " ", conditionMessage(res))))
+  }
+  n <- length(res)
+  ex <- vapply(utils::head(res, max_examples), function(l) {
+    sprintf("line %d: %s", l$line_number, sub("\\.$", "", l$message))
+  }, character(1))
+  list(n = n, examples = paste(ex, collapse = "; "), failed = NULL)
+}
+
+# ---------------------------------------------------------------------
+# Parse with recovery. R's parse() gives up at the first syntax error; students
+# then get no feedback on anything else. This walks the file line by line,
+# accumulating lines until they form complete expression(s):
+#   * complete        -> accept, start a new buffer on the next line
+#   * still incomplete (open bracket, trailing operator, open string) -> keep going
+#   * a real syntax error -> record it, replace the buffered lines with comment
+#                            markers (so line numbers stay intact) and move on
+# The cleaned text is then parsed once more with a srcfile named after the
+# student's file, so later locations and messages carry the file name only
+# (never the grader's folder path). Nothing from the student file is executed.
+# Returns list(exprs, clean_lines, errors = data.frame(first, last, message, text)).
+# ---------------------------------------------------------------------
+grader_parse_recover <- function(code_lines, fname = "<student file>", max_errors = 50L) {
+  n <- length(code_lines)
+  clean <- code_lines
+  err_first <- err_last <- integer(); err_msg <- err_txt <- character()
+  marker <- "# [codeGrader: line skipped - syntax error]"
+  incomplete_pat <- "unexpected end of input|INCOMPLETE_STRING|unexpected end of line"
+
+  try_parse <- function(lines) {
+    tryCatch({ parse(text = lines, keep.source = FALSE); "ok" },
+             error = function(e) conditionMessage(e))
+  }
+  # "<text>:3:7: unexpected symbol\n3: drive counts\n ^" -> "unexpected symbol"
+  core_msg <- function(msg) {
+    first <- strsplit(msg, "\n", fixed = TRUE)[[1]][1]
+    sub("^<text>:[0-9]+:[0-9]+: *", "", first)
+  }
+  record <- function(a, b, msg) {
+    err_first <<- c(err_first, a); err_last <<- c(err_last, b)
+    shown <- trimws(code_lines[a:b]); shown <- shown[nzchar(shown) & !startsWith(shown, "#")]
+    shown <- if (length(shown)) substr(shown[1], 1, 60) else ""
+    err_txt <<- c(err_txt, shown)
+    where <- if (b > a) sprintf("lines %d-%d", a, b) else sprintf("line %d", a)
+    err_msg <<- c(err_msg, sprintf("%s: %s%s", where, core_msg(msg),
+                                   if (nzchar(shown)) sprintf(" in \"%s\"", shown) else ""))
+    clean[a:b] <<- marker
+  }
+
+  start <- 1L; i <- 1L
+  while (i <= n && length(err_first) < max_errors) {
+    res <- try_parse(code_lines[start:i])
+    if (identical(res, "ok")) {
+      start <- i + 1L
+    } else if (grepl(incomplete_pat, res)) {
+      if (i == n) { record(start, n, res); start <- n + 1L }   # never closed before end of file
+    } else {
+      record(start, i, res); start <- i + 1L
+    }
+    i <- i + 1L
+  }
+  if (length(err_first) >= max_errors && start <= n) {        # give up on the remainder
+    record(start, n, "<text>:1:1: too many syntax errors; remaining lines skipped")
+  }
+
+  exprs <- tryCatch(parse(text = clean, keep.source = TRUE,
+                          srcfile = srcfilecopy(fname, clean, isFile = FALSE)),
+                    error = function(e) NULL)
+  if (is.null(exprs)) {                 # recovery itself failed: treat the whole file as unreadable
+    msg <- tryCatch(parse(text = code_lines, keep.source = FALSE), error = function(e) conditionMessage(e))
+    return(list(exprs = expression(), clean_lines = rep(marker, n),
+                errors = data.frame(first = 1L, last = n, text = "",
+                                    message = sprintf("line 1: %s", core_msg(as.character(msg))),
+                                    stringsAsFactors = FALSE)))
+  }
+  list(exprs = exprs, clean_lines = clean,
+       errors = data.frame(first = err_first, last = err_last, message = err_msg, text = err_txt,
+                           stringsAsFactors = FALSE))
 }
 
 # ---------------------------------------------------------------------
@@ -97,31 +224,78 @@ grader_prepare_file <- function(f, ctx) {
 grader_finalize_file <- function(prep, w, ctx) {
   on.exit({
     unlink(prep$run_dir, recursive = TRUE)
-    if (prep$is_rmd) unlink(prep$code_path)
+    if (isTRUE(prep$code_tmp)) unlink(prep$code_path)
   }, add = TRUE)
   row <- prep$row; sc <- prep$sc; info <- prep$info
   fname <- prep$fname; run_dir <- prep$run_dir
+  syntax <- prep$syntax
+  if (is.null(syntax)) syntax <- data.frame(first = integer(), last = integer(), message = character(),
+                                            text = character(), label = character(), stringsAsFactors = FALSE)
   worker_ok <- !inherits(w, "worker_failed")
 
   # ---- package findings -----------------------------------------------
-  loaded_real    <- setdiff(sc$loaded, "<dynamic>")
+  # The worker attached only the packages the student loads, in the student's
+  # order, so fn_pkg says what each call really resolved to for this student:
+  #   resolved to a non-base package  -> that package is used (and was loaded)
+  #   NA (not found)                  -> look the function up in the approved
+  #                                      packages' export map: that package is
+  #                                      used but never loaded
+  loaded_real    <- setdiff(sc$loaded, "<dynamic>")       # in the student's order
   installed_real <- setdiff(sc$installed, "<dynamic>")
+  expand <- function(p) unique(c(p, unlist(ctx$attach_map[intersect(p, names(ctx$attach_map))], use.names = FALSE)))
   fn_pkg   <- if (worker_ok) w$fn_pkg else character()
-  nec_bare <- setdiff(intersect(unique(fn_pkg[!is.na(fn_pkg)]), ctx$approved_ok), ctx$base_pkgs)
-  nec_ns   <- setdiff(sc$ns_used, ctx$base_pkgs)
-  necessary <- union(nec_bare, nec_ns)
-  covered   <- union(loaded_real, unlist(ctx$attach_map[intersect(loaded_real, names(ctx$attach_map))]))
-  not_loaded <- setdiff(nec_bare, covered)
-  installed_eff <- if (sc$dyn_install) union(installed_real, loaded_real) else installed_real
+  used_pkgs <- setdiff(intersect(unique(fn_pkg[!is.na(fn_pkg)]), ctx$approved_ok), ctx$base_pkgs)
+  unresolved <- names(fn_pkg)[is.na(fn_pkg)]
+  covered    <- expand(loaded_real)                           # loaded directly or attached by another load
+  not_loaded <- character()
+  if (length(unresolved) && length(ctx$export_map)) {
+    not_loaded <- unique(unlist(lapply(unresolved, function(fn) {
+      hits <- names(ctx$export_map)[vapply(ctx$export_map, function(ex) fn %in% ex, logical(1))]
+      hits <- setdiff(hits, c(ctx$base_pkgs, covered))
+      if (length(hits) == 1) hits else if (length(hits) > 1) paste(hits, collapse = " or ") else character()
+    }), use.names = FALSE))
+  }
+  nec_ns     <- setdiff(sc$ns_used, ctx$base_pkgs)
+  necessary  <- unique(c(used_pkgs, nec_ns, not_loaded))
+  installed_eff <- expand(installed_real)                   # installing tidyverse installs ggplot2, dplyr, ...
+  if (sc$dyn_install) installed_eff <- union(installed_eff, expand(loaded_real))
   no_install <- setdiff(necessary, installed_eff)
   unapproved <- setdiff(unique(c(loaded_real, installed_real, sc$ns_used)),
                         c(ctx$base_pkgs, ctx$approved))
-  is_needed <- function(p) p %in% nec_ns || any(c(p, ctx$attach_map[[p]]) %in% nec_bare)
+
+  # loaded but nothing from it (or from what it attaches) is used
+  is_needed <- function(p) p %in% nec_ns || any(expand(p) %in% used_pkgs)
   cand <- loaded_real[loaded_real %in% ctx$approved_ok]
   loaded_unneeded <- cand[!vapply(cand, is_needed, logical(1))]
+
+  # loaded or installed separately although another package already brings it
+  # in: library(tidyverse) + library(ggplot2) -> "ggplot2 (included in tidyverse)"
+  redundant_in <- function(p, set) {
+    others <- setdiff(set, p)
+    owners <- others[vapply(others, function(q) p %in% ctx$attach_map[[q]], logical(1))]
+    if (length(owners)) sprintf("%s (included in %s)", p, owners[1]) else NA_character_
+  }
+  loaded_redundant    <- stats::na.omit(vapply(loaded_real,    redundant_in, character(1), set = loaded_real))
+  installed_redundant <- stats::na.omit(vapply(installed_real, redundant_in, character(1), set = installed_real))
   if (isTRUE(ctx$dry)) {            # 'necessary' needs a real run; leave those checks blank in a dry run
     necessary <- not_loaded <- no_install <- loaded_unneeded <- character()
   }
+
+  # library() called more than once for the same package (a require() used as
+  # the condition of an install guard is not counted): "ggplot2 (2 calls)"
+  lc <- sc$load_calls
+  if (is.null(lc)) lc <- data.frame(pkg = character(), idx = integer(), guard = logical())
+  lc <- lc[!lc$guard & lc$pkg != "<dynamic>", , drop = FALSE]
+  tab <- table(lc$pkg)
+  loaded_repeated <- if (length(tab)) sprintf("%s (%d calls)", names(tab)[tab > 1], as.integer(tab[tab > 1])) else character()
+
+  # package install/load calls that come after other code has already run
+  late <- if (is.null(sc$late_setup_idx)) integer() else sc$late_setup_idx
+  setup_after_code <- vapply(late, function(i) {
+    pk <- unique(c(sc$load_calls$pkg[sc$load_calls$idx == i]))
+    pk <- setdiff(pk, "<dynamic>")
+    sprintf("%s (%s)", if (length(pk)) paste(pk, collapse = "/") else "install.packages", grader_location(i, info))
+  }, character(1))
 
   row$pkgs_loaded <- grader_fmt(sc$loaded)
   row$pkgs_install_attempted <- grader_fmt(sc$installed)
@@ -129,6 +303,50 @@ grader_finalize_file <- function(prep, w, ctx) {
   row$pkgs_necessary_not_loaded <- grader_fmt(not_loaded)
   row$pkgs_necessary_no_install_attempt <- grader_fmt(no_install)
   row$pkgs_loaded_not_necessary <- grader_fmt(loaded_unneeded)
+  row$pkgs_loaded_redundant <- grader_fmt(loaded_redundant)
+  row$pkgs_installed_redundant <- grader_fmt(installed_redundant)
+  row$pkgs_loaded_repeated <- grader_fmt(loaded_repeated)
+  row$pkgs_setup_after_code <- paste(setup_after_code, collapse = "; ")
+
+  # ---- numbered sections with no code (CG-032) --------------------------
+  # a section whose only code was skipped for a syntax error is not "empty"
+  sections_empty <- setdiff(if (is.null(sc$sections_empty)) character() else sc$sections_empty, syntax$label)
+  row$sections_without_code <- paste(sections_empty, collapse = "; ")
+
+  # ---- graphics devices (CG-033): opened vs. closed ---------------------
+  dev_opens <- if (is.null(sc$dev_opens)) data.frame(fn = character(), idx = integer()) else sc$dev_opens
+  n_dev_open <- nrow(dev_opens); n_dev_close <- length(sc$dev_close_idx)
+  dev_left_open <- if (worker_ok && !is.null(w$devices_left_open)) w$devices_left_open else 0L
+  dev_note <- character()
+  if (n_dev_open > n_dev_close || dev_left_open > 0) {
+    opens <- vapply(seq_len(n_dev_open), function(k) sprintf("%s() at %s", dev_opens$fn[k], grader_location(dev_opens$idx[k], info)), character(1))
+    dev_note <- sprintf("%s; dev.off() called %d time(s)%s", paste(opens, collapse = ", "), n_dev_close,
+                        if (dev_left_open > 0) sprintf("; %d device(s) still open when the script ended", dev_left_open) else "")
+  }
+  row$graphics_devices <- if (n_dev_open || n_dev_close) sprintf("%d opened, %d closed", n_dev_open, n_dev_close) else ""
+  row$graphics_device_note <- paste(dev_note, collapse = "")
+
+  # ---- coding-practice notes (CG-034) ------------------------------------
+  pr <- if (is.null(sc$practice)) data.frame(kind = character(), idx = integer()) else sc$practice
+  practice_text <- c(
+    attach = "attach() hides where variables come from; use data$column or with()",
+    View = "View() opens a viewer window and does nothing in a script that is run or knitted; remove it before submitting",
+    rm_ls = "rm(list = ls()) in the middle of a script deletes your own objects; if you use it, put it on the first line only",
+    install_unguarded = "install.packages() runs (and re-downloads) every time the script is run; wrap it as if (!require(pkg)) install.packages(\"pkg\")"
+  )
+  practice_notes <- character()
+  if (nrow(pr)) {
+    pr <- pr[!duplicated(pr$kind), , drop = FALSE]                 # one note per kind, at its first location
+    practice_notes <- sprintf("%s (%s)", practice_text[pr$kind], vapply(pr$idx, grader_location, character(1), info = info))
+  }
+  row$practice_notes <- paste(practice_notes, collapse = "; ")
+
+  # ---- style check (CG-035) -----------------------------------------------
+  st <- prep$style
+  if (!is.null(st)) {
+    row$style_issues <- st$n
+    row$style_examples <- if (!is.null(st$failed)) paste("style check failed:", st$failed) else st$examples
+  }
   row$pkgs_unapproved <- grader_fmt(unapproved)
   row$other_data_calls <- grader_fmt(sc$other_reads)
 
@@ -137,6 +355,9 @@ grader_finalize_file <- function(prep, w, ctx) {
     if (length(not_loaded))   "NECESSARY_PKG_NOT_LOADED",
     if (length(no_install))   "NECESSARY_PKG_NO_INSTALL_ATTEMPT",
     if (length(loaded_unneeded)) "UNNECESSARY_PKG_LOADED",
+    if (length(loaded_redundant) || length(installed_redundant)) "REDUNDANT_PKG",
+    if (length(loaded_repeated))  "PKG_LOADED_REPEATEDLY",
+    if (length(late))             "PKG_SETUP_AFTER_CODE",
     if (sc$dyn_load || sc$dyn_install) "LIBRARY_LIST_UNRESOLVED"
   )
 
@@ -159,12 +380,33 @@ grader_finalize_file <- function(prep, w, ctx) {
                                          substr(hc$text, 1, 40)), collapse = "; ")
   }
   oth_flags <- c(
+    if (nzchar(row$other_flags)) row$other_flags,         # e.g. SMART_QUOTES, set while parsing
     if (length(sc$rng_missing_idx)) "SEED_MISSING_BEFORE_RANDOM",
     if (nrow(hc)) "HARDCODED_PATH_OR_FILE",
     if (n_abs > 0) "ABSOLUTE_PATH_LITERAL",
     if (sc$n_exprs == 0) "EMPTY_SCRIPT",
-    if (!is.null(prep$scan_failed)) "STATIC_SCAN_FAILED"
+    if (!is.null(prep$scan_failed)) "STATIC_SCAN_FAILED",
+    if (length(sections_empty)) "SECTION_WITHOUT_CODE",
+    if (length(dev_note)) "GRAPHICS_DEVICE_LEFT_OPEN",
+    if (length(practice_notes)) "PRACTICE_NOTE",
+    if (!is.null(st) && !is.na(st$n) && st$n > 0) "STYLE_ISSUES"
   )
+
+  # ---- syntax errors (lines skipped by the parse recovery) -------------
+  # Reported like root errors: each is the student's own, independent mistake.
+  syndf <- NULL
+  row$n_syntax_errors <- nrow(syntax)
+  if (nrow(syntax)) {
+    oth_flags <- c(oth_flags, "SYNTAX_ERROR_SKIPPED")
+    lab <- syntax$label
+    syndf <- data.frame(
+      file = fname, expr_number = NA_integer_, error_type = "syntax", caused_by = "",
+      location = ifelse(nzchar(lab), paste0(sub(":.*$", "", syntax$message), " [", lab, "]"),
+                        sub(":.*$", "", syntax$message)),
+      failing_function = "", failing_call = syntax$text,
+      message = sub("^lines? [0-9-]+: ", "", syntax$message),
+      .line = syntax$first, stringsAsFactors = FALSE)
+  }
 
   # ---- execution results ----------------------------------------------
   errdf <- NULL
@@ -177,11 +419,10 @@ grader_finalize_file <- function(prep, w, ctx) {
     row$first_error <- w$msg
   } else {
     row$exprs_ok <- w$n_ok
-    row$n_errors <- length(w$errors)
     row$n_warnings <- w$n_warn
     row$runtime_sec <- round(w$elapsed, 2)
     row$pct_exprs_ok <- if (sc$n_exprs) round(100 * w$n_ok / sc$n_exprs, 1) else NA_real_
-    row$status <- if (length(w$errors)) "Executed with errors" else "Executed without error"
+    row$status <- if (length(w$errors) || nrow(syntax)) "Executed with errors" else "Executed without error"
     row$data_reads_redirected <- w$reads
     if (length(w$blocked)) {
       tb <- table(w$blocked)
@@ -200,12 +441,31 @@ grader_finalize_file <- function(prep, w, ctx) {
           location = grader_location(er$i, info),
           failing_function = if (is.na(er$fn)) "" else er$fn,
           failing_call = if (is.na(er$call)) "" else er$call,
-          message = er$message, stringsAsFactors = FALSE)
+          message = er$message,
+          .line = if (er$i >= 1 && er$i <= nrow(info)) info$src_first[er$i] else NA_integer_,
+          stringsAsFactors = FALSE)
       }))
-      row$n_root_errors    <- sum(errdf$error_type == "root")
+      # The same root error repeated (e.g. "object 'wk1data' not found" at every
+      # later use) is reported once; repeats point back to the first occurrence.
+      is_root <- errdf$error_type == "root"
+      first_at <- match(errdf$message, errdf$message[is_root])
+      rep_of <- which(is_root)[first_at]
+      repeat_i <- which(is_root & !is.na(rep_of) & rep_of < seq_len(nrow(errdf)))
+      if (length(repeat_i)) {
+        errdf$error_type[repeat_i] <- "repeat"
+        errdf$caused_by[repeat_i]  <- errdf$location[rep_of[repeat_i]]
+      }
+    }
+    errdf <- rbind(syndf, errdf)                      # syntax + runtime errors, in file order
+    if (!is.null(errdf) && nrow(errdf)) {
+      errdf <- errdf[order(errdf$.line, na.last = TRUE), , drop = FALSE]; errdf$.line <- NULL
+      rownames(errdf) <- NULL
+      row$n_errors         <- nrow(errdf)
+      row$n_root_errors    <- sum(errdf$error_type %in% c("root", "syntax"))
       row$n_cascade_errors <- sum(errdf$error_type == "cascade")
-      row$pct_exprs_no_root_error <- if (sc$n_exprs) round(100 * (sc$n_exprs - row$n_root_errors) / sc$n_exprs, 1) else NA_real_
-      roots <- errdf[errdf$error_type == "root", , drop = FALSE]
+      row$n_repeat_errors  <- sum(errdf$error_type == "repeat")
+      row$pct_exprs_no_root_error <- if (sc$n_exprs) round(100 * (sc$n_exprs - sum(errdf$error_type == "root")) / sc$n_exprs, 1) else NA_real_
+      roots <- errdf[errdf$error_type %in% c("root", "syntax"), , drop = FALSE]
       row$root_error_summary <- paste(sprintf("%s%s: %s", roots$location,
                                               ifelse(nzchar(roots$failing_function), paste0(" in ", roots$failing_function, "()"), ""),
                                               sub("\\.$", "", substr(roots$message, 1, 100))), collapse = " | ")
@@ -221,6 +481,15 @@ grader_finalize_file <- function(prep, w, ctx) {
     row$files_saved <- paste(saved, collapse = "; ")
     if (isTRUE(ctx$expect_saved) && !length(saved)) oth_flags <- c(oth_flags, "EXPECTED_FILE_NOT_SAVED")
     if (!isTRUE(ctx$expect_saved) && length(saved))  oth_flags <- c(oth_flags, "UNEXPECTED_FILE_SAVED")
+    # required file names (CG-036): each required name/pattern must match a saved file (case-insensitive)
+    req <- ctx$required_files
+    if (isTRUE(ctx$expect_saved) && length(req) && length(saved)) {
+      got <- vapply(req, function(r) any(grepl(utils::glob2rx(r), basename(saved), ignore.case = TRUE)), logical(1))
+      if (any(!got)) {
+        row$required_files_missing <- paste(req[!got], collapse = "; ")
+        oth_flags <- c(oth_flags, "REQUIRED_FILE_NOT_SAVED")
+      }
+    }
     if (length(saved)) {
       dd <- file.path(ctx$saved_dir, tools::file_path_sans_ext(fname))
       for (ff in saved) {
@@ -241,6 +510,11 @@ grader_finalize_file <- function(prep, w, ctx) {
     }
   }
 
+  if (is.null(errdf) && !is.null(syndf)) {          # dry run or failed worker: still report syntax errors
+    errdf <- syndf; errdf$.line <- NULL
+    row$n_errors <- row$n_errors + nrow(syndf); row$n_root_errors <- row$n_root_errors + nrow(syndf)
+    if (!nzchar(row$first_error)) row$first_error <- syndf$message[1]
+  }
   row$library_flags <- paste(lib_flags, collapse = "; ")
   row$other_flags   <- paste(oth_flags, collapse = "; ")
   list(row = row, errors = errdf)
@@ -291,7 +565,9 @@ grader_run_jobs <- function(code_files, ctx, workers) {
                                 fn_names = setdiff(prep$sc$called, prep$sc$defined),
                                 expr_timeout_sec = ctx$expr_timeout_sec,
                                 seed_value = ctx$seed_value,
-                                seed_inject_idx = prep$sc$rng_missing_idx),
+                                seed_inject_idx = prep$sc$rng_missing_idx,
+                                # the student's own library()/require() packages, in order
+                                student_pkgs = intersect(setdiff(prep$sc$loaded, "<dynamic>"), ctx$approved_ok)),
                     wd = prep$run_dir, stdout = NULL, stderr = NULL, supervise = TRUE),
         error = function(e) e)
       if (inherits(proc, "error")) {

@@ -58,3 +58,60 @@ test_that("root errors are separated from cascade errors", {
   expect_equal(cls$type, c("root", "cascade"))
   expect_equal(cls$by, c(NA_integer_, 2L))
 })
+
+test_that("library() calls are counted per package; an install guard's require() is not a second load", {
+  sc <- scan_text(c('if (!require(tidyverse)) {install.packages("tidyverse")}',
+                    'library(tidyverse)',
+                    'x <- 1',
+                    'library(tidyverse)'))
+  lc <- sc$load_calls
+  expect_equal(nrow(lc), 3L)
+  expect_equal(lc$guard, c(TRUE, FALSE, FALSE))
+  expect_equal(sum(!lc$guard & lc$pkg == "tidyverse"), 2L)   # -> reported as "tidyverse (2 calls)"
+})
+
+test_that("package set-up after other code is detected; housekeeping at the top is not 'other code'", {
+  sc <- scan_text(c('library(dplyr)',
+                    'filePath <- "~/x/"',           # constant assignment: neutral
+                    'setwd(filePath)',              # neutral
+                    'pk <- c("ggplot2")',
+                    'for (p in pk) library(p, character.only = TRUE)',
+                    'd <- data.frame(a = 1:3)',     # first real code (expression 6)
+                    'library(tidyr)'))              # late
+  expect_equal(sc$setup_idx, c(1L, 5L))
+  expect_equal(sc$late_setup_idx, 7L)
+  sc2 <- scan_text(c('library(dplyr)', 'd <- data.frame(a = 1)'))
+  expect_length(sc2$late_setup_idx, 0)
+})
+
+test_that("numbered sections with no code are listed; the preamble is ignored", {
+  sc <- scan_text(c("# INSTALL & LOAD NECESSARY PACKAGES ----------",
+                    "library(dplyr)",
+                    "# 1. IMPORT DATA (5 Points) -------------------",
+                    'd <- read.csv("x.csv")',
+                    "# 2. VIEW THE DATA STRUCTURE (10 Points) ------",
+                    "# str(d)   (student left only a comment here)",
+                    "# 3. IDENTIFY OBSERVATIONS (10 Points) --------",
+                    "nrow(d)"))
+  expect_equal(sc$sections_empty, "2. VIEW THE DATA STRUCTURE (10 Points)")
+})
+
+test_that("graphics device opens and closes are counted", {
+  sc <- scan_text(c('png("a.png")', "plot(1:3)", "dev.off()", 'pdf("b.pdf")', "plot(1:3)"))
+  expect_equal(sc$dev_opens$fn, c("png", "pdf"))
+  expect_equal(sc$dev_opens$idx, c(1L, 4L))
+  expect_equal(sc$dev_close_idx, 3L)
+})
+
+test_that("coding-practice notes: attach, View, mid-script rm(list = ls()), unguarded install", {
+  sc <- scan_text(c("rm(list = ls())",                       # first line: allowed
+                    'install.packages("dplyr")',             # unguarded
+                    'if (!require(tidyr)) install.packages("tidyr")',   # guarded: no note
+                    "library(dplyr)",
+                    "attach(mtcars)",
+                    "View(mtcars)",
+                    "rm(list = ls())"))                      # mid-script: note
+  expect_setequal(sc$practice$kind, c("install_unguarded", "attach", "View", "rm_ls"))
+  expect_equal(sc$practice$idx[sc$practice$kind == "rm_ls"], 7L)
+  expect_equal(sum(sc$practice$kind == "install_unguarded"), 1L)
+})

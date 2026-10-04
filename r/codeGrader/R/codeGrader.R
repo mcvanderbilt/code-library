@@ -2,8 +2,8 @@
 # Purpose:      Main entry point: grade a folder, one file, a re-run, or a dry run of student .R / .Rmd homework.
 # Author:       Matthew C. Vanderbilt (@mcvanderbilt)
 # Created:      2026-10-03
-# Modified:     2026-10-03 — Moved into code-library r/codeGrader; header aligned to GOVERNANCE.md
-# Version:      1.6
+# Modified:     2026-10-03 — Export map for "package not loaded" detection; optional lintr style pass (style = TRUE); required saved-file names
+# Version:      1.7.0
 # Tags:         automation, data-validation, reporting, teaching
 # Status:       draft
 # Level:        intermediate
@@ -17,10 +17,12 @@
 #'
 #' Pop-up dialogs ask what to do (grade a folder, one file, re-run earlier failures,
 #' or a dry run), the standard seed, the folders and data file, the approved-packages
-#' list, and whether students must save a file. Each .R / .Rmd file then runs in its
-#' own isolated R process (several at a time). Student `library()`/`install.packages()`
-#' calls are never executed; approved packages are loaded for them. Every data-import
-#' call is redirected to the data file you choose.
+#' list, and whether students must save a file (and under what name). Each .R / .Rmd
+#' file then runs in its own isolated R process (several at a time). Student
+#' `library()`/`install.packages()` calls are never executed; the approved packages the
+#' student names are attached for them, in the student's order. Every data-import call
+#' is redirected to the data file you choose. A syntax error skips only the unreadable
+#' expression; the rest of the file is still checked.
 #'
 #' Results are appended to cumulative CSV files (every row carries `run_id`, `run_time`
 #' and `assignment`) and to a cohort workbook with one worksheet per assignment.
@@ -37,6 +39,13 @@
 #' @param rng_fns Names of functions that generate random numbers (checked for a
 #'   preceding `set.seed()` in the same code block).
 #' @param exclude_pattern Regular expression for file names to ignore.
+#' @param style Also run a small `lintr` style check (object naming, `<-` assignment,
+#'   spaces around operators, commas, line length, `TRUE`/`FALSE` spelled out). Off by
+#'   default; nothing is executed. Results go to the `style_issues` / `style_examples`
+#'   columns and a feedback sentence.
+#' @param style_naming Naming style(s) accepted by the style check (passed to
+#'   `lintr::object_name_linter()`), e.g. `"camelCase"`, `"snake_case"`.
+#' @param style_line_length Maximum line length for the style check.
 #' @return Invisibly, a data frame with one row per file for this run.
 #' @export
 #' @examples
@@ -52,8 +61,17 @@ codeGrader <- function(assignment         = NULL,  # assignment number (e.g. 3) 
                                   script_timeout_sec = 300,     # max seconds per whole script
                                   save_console       = TRUE,
                                   rng_fns            = grader_default_rng_fns,
-                                  exclude_pattern    = "^(codeGrader|run_all_scripts)\\.[Rr]$") {
+                                  exclude_pattern    = "^(codeGrader|run_all_scripts)\\.[Rr]$",
+                                  style              = FALSE,   # optional lintr style pass (CG-035)
+                                  style_naming       = c("camelCase", "snake_case"),
+                                  style_line_length  = 100) {
   grader_validate_args(workers, expr_timeout_sec, script_timeout_sec, assignment)
+  style <- isTRUE(style)
+  if (style && !grader_is_installed("lintr")) {
+    message("Installing optional package lintr (needed for the style check)...")
+    grader_install("lintr")
+    if (!grader_is_installed("lintr")) { message("lintr could not be installed; style check skipped."); style <- FALSE }
+  }
   if (!grader_is_installed("openxlsx")) {                      # optional (Excel workbook)
     message("Installing optional package openxlsx (needed for the cohort Excel workbook)...")
     grader_install("openxlsx")
@@ -101,10 +119,11 @@ codeGrader <- function(assignment         = NULL,  # assignment number (e.g. 3) 
     message(if (dry) "Note - approved but not installed here: " else "WARNING - could not install: ",
             paste(setdiff(approved, approved_ok), collapse = ", "))
   }
-  attach_map <- list()
+  attach_map <- list(); export_map <- list()
   if (!dry) {
-    message("Mapping what each approved package attaches (one-time)...")
-    attach_map <- grader_attach_map(approved_ok)
+    message("Mapping what each approved package attaches and exports (one-time)...")
+    maps <- grader_pkg_maps(approved_ok)
+    attach_map <- maps$attach; export_map <- maps$exports
   }
 
   # collect files
@@ -130,10 +149,11 @@ codeGrader <- function(assignment         = NULL,  # assignment number (e.g. 3) 
 
   ctx <- list(
     dry = dry, data_file = inp$data_file, approved = approved, approved_ok = approved_ok,
-    attach_map = attach_map, base_pkgs = grader_base_pkgs,
+    attach_map = attach_map, export_map = export_map, base_pkgs = grader_base_pkgs,
     expr_timeout_sec = expr_timeout_sec, script_timeout_sec = script_timeout_sec,
     seed_value = inp$seed_value, rng_fns = rng_fns,
-    expect_saved = inp$expect_saved, save_console = save_console,
+    expect_saved = inp$expect_saved, required_files = inp$required_files, save_console = save_console,
+    style = style, style_naming = style_naming, style_line_length = style_line_length,
     saved_dir   = file.path(inp$output_folder, paste0(inp$output_name, "_saved_files"), run_id),
     console_dir = file.path(inp$output_folder, paste0(inp$output_name, "_console"), run_id),
     checkpoint  = if (dry) NULL else file.path(inp$output_folder, paste0(inp$output_name, "_checkpoint_", run_id, ".csv")),
@@ -231,7 +251,9 @@ codeGrader <- function(assignment         = NULL,  # assignment number (e.g. 3) 
     paste("Standard seed value:", inp$seed_value),
     paste("Parallel workers:   ", workers),
     paste("Expression timeout: ", expr_timeout_sec, "sec; script timeout:", script_timeout_sec, "sec"),
-    paste("Saved files expected:", inp$expect_saved),
+    paste("Saved files expected:", inp$expect_saved,
+          if (length(inp$required_files)) paste0("(required: ", paste(inp$required_files, collapse = ", "), ")") else ""),
+    paste("Style check (lintr):", if (style) paste0("on; naming ", paste(style_naming, collapse = "/"), ", line length ", style_line_length) else "off"),
     paste("Instructor solution:", if (is.null(sol)) "not checked" else sol$path),
     paste("Re-run of:          ", if (is.null(inp$rerun_of)) "no" else inp$rerun_of),
     paste("Files checked:      ", length(code_files), "(+", length(other_files), "unsupported)")

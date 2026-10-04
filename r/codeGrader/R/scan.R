@@ -2,8 +2,8 @@
 # Purpose:      Static analysis of one parsed student script (packages, set.seed placement, hard-coded paths, error classification). Nothing from the student file is executed.
 # Author:       Matthew C. Vanderbilt (@mcvanderbilt)
 # Created:      2026-10-03
-# Modified:     2026-10-03 — Moved into code-library r/codeGrader; header aligned to GOVERNANCE.md
-# Version:      1.6
+# Modified:     2026-10-03 — Set-up order and repeated library() checks; empty numbered sections; graphics-device open/close counts; coding-practice notes (attach, rm(list = ls()), View, unguarded install.packages)
+# Version:      1.7.0
 # Tags:         automation, data-validation, reporting, teaching
 # Status:       draft
 # Level:        intermediate
@@ -186,6 +186,11 @@ grader_empty_scan <- function(exprs) {
        seed_idx = integer(), rng_blocks = 0L, rng_missing_idx = integer(),
        io = data.frame(fn = character(), idx = integer(), kind = character(), text = character(), stringsAsFactors = FALSE),
        hc = data.frame(fn = character(), idx = integer(), text = character(), stringsAsFactors = FALSE),
+       load_calls = data.frame(pkg = character(), idx = integer(), guard = logical(), stringsAsFactors = FALSE),
+       setup_idx = integer(), late_setup_idx = integer(),
+       sections_empty = character(),
+       dev_opens = data.frame(fn = character(), idx = integer(), stringsAsFactors = FALSE), dev_close_idx = integer(),
+       practice = data.frame(kind = character(), idx = integer(), stringsAsFactors = FALSE),
        expr_assigned = rep(list(character()), n), expr_used = rep(list(character()), n))
 }
 
@@ -225,6 +230,19 @@ grader_scan_script <- function(exprs, code_lines, is_rmd = FALSE,
   cur_idx <- NA_integer_
   hc_fn <- character(); hc_idx <- integer(); hc_text <- character()
   suppress_path <- FALSE
+  # every library()/require() call: package, top-level expression, and whether it
+  # is the condition of an if() (the usual `if (!require(x)) install.packages(x)` guard)
+  lc_pkg <- character(); lc_idx <- integer(); lc_guard <- logical()
+  guard_depth <- 0L                           # > 0 while walking the condition of an if()
+  if_depth <- 0L                              # > 0 anywhere inside an if() (condition or branches)
+  setup_idx <- integer()                      # top-level expressions that install or load packages
+  dev_fn <- character(); dev_idx <- integer(); dev_close_idx <- integer()   # graphics devices opened / closed
+  pr_kind <- character(); pr_idx <- integer()                               # coding-practice notes
+  note_practice <- function(kind) { pr_kind <<- c(pr_kind, kind); pr_idx <<- c(pr_idx, cur_idx) }
+  note_load <- function(pk) {
+    lc_pkg <<- c(lc_pkg, pk); lc_idx <<- c(lc_idx, rep(cur_idx, length(pk)))
+    lc_guard <<- c(lc_guard, rep(guard_depth > 0L, length(pk)))
+  }
   consts <- new.env(parent = baseenv())      # constant character vectors only
   allowed <- c("c", "paste", "paste0", "unique", "sort", "rev", "setdiff", "union",
                "intersect", "character", "tolower", "toupper", "sprintf", "file.path", "(")
@@ -276,6 +294,22 @@ grader_scan_script <- function(exprs, code_lines, is_rmd = FALSE,
           return(invisible())
         }
         called <<- c(called, fn)
+
+        # graphics devices: file devices opened vs. dev.off()/graphics.off()
+        if (fn %in% c("png", "jpeg", "bmp", "tiff", "pdf", "svg", "postscript", "cairo_pdf", "dev.new", "windows", "x11", "quartz")) {
+          dev_fn <<- c(dev_fn, fn); dev_idx <<- c(dev_idx, cur_idx)
+        } else if (fn %in% c("dev.off", "graphics.off")) {
+          dev_close_idx <<- c(dev_close_idx, cur_idx)
+        }
+        # coding-practice notes (not errors)
+        if (fn == "attach") note_practice("attach")
+        if (fn == "View") note_practice("View")
+        if (fn == "rm") {
+          a <- tryCatch(as.list(e)[-1], error = function(err) list())
+          if (any(vapply(a, function(z) is.call(z) && is.symbol(z[[1]]) && as.character(z[[1]]) == "ls", logical(1))))
+            note_practice("rm_ls")
+        }
+        if (fn == "install.packages" && if_depth == 0L) note_practice("install_unguarded")
 
         # hard-coded file path / file name / URL passed straight into a function call
         if (!suppress_path && !(fn %in% c("<-", "=", "<<-"))) {
@@ -335,11 +369,13 @@ grader_scan_script <- function(exprs, code_lines, is_rmd = FALSE,
             fa <- a[[fi]]
             if (is.symbol(fa) && as.character(fa) %in% c("library", "require", "install.packages")) {
               pk <- if (is.character(vals)) vals else "<dynamic>"
+              setup_idx <<- c(setup_idx, cur_idx)
               if (as.character(fa) == "install.packages") {
                 installed <<- c(installed, pk)
+                if (if_depth == 0L) note_practice("install_unguarded")
                 if (!is.character(vals)) dyn_install <<- TRUE
               } else {
-                loaded <<- c(loaded, pk)
+                loaded <<- c(loaded, pk); note_load(pk)
               }
               skip_idx <- fi + 1L
             } else if (is.call(fa) && is.symbol(fa[[1]]) && as.character(fa[[1]]) == "function" &&
@@ -356,11 +392,14 @@ grader_scan_script <- function(exprs, code_lines, is_rmd = FALSE,
         }
 
         if (fn %in% c("library", "require")) {
+          setup_idx <<- c(setup_idx, cur_idx)
           mc <- tryCatch(match.call(base::library, e), error = function(err) NULL)
           if (!is.null(mc) && !is.null(mc$package)) {
-            loaded <<- c(loaded, as_pkg(mc$package, isTRUE(mc$character.only)))
+            pk <- as_pkg(mc$package, isTRUE(mc$character.only))
+            loaded <<- c(loaded, pk); note_load(pk)
           }
         } else if (fn == "install.packages") {
+          setup_idx <<- c(setup_idx, cur_idx)
           mc <- tryCatch(match.call(utils::install.packages, e), error = function(err) NULL)
           if (!is.null(mc) && !is.null(mc$pkgs)) {
             pk <- as_pkg(mc$pkgs, TRUE)
@@ -368,19 +407,21 @@ grader_scan_script <- function(exprs, code_lines, is_rmd = FALSE,
             if ("<dynamic>" %in% pk) dyn_install <<- TRUE
           }
         } else if (fn %in% c("install_github", "install_version", "install_cran")) {
+          setup_idx <<- c(setup_idx, cur_idx)
           a <- tryCatch(as.list(e)[-1], error = function(err) list())
           if (length(a)) {
             v <- as_pkg(a[[1]], TRUE)
             installed <<- c(installed, sub("^.*/", "", sub("@.*$", "", v)))
           }
         } else if (fn %in% c("p_load", "p_install")) {
+          setup_idx <<- c(setup_idx, cur_idx)
           a  <- tryCatch(as.list(e)[-1], error = function(err) list())
           nm <- names(a); if (is.null(nm)) nm <- rep("", length(a))
           pk <- tryCatch(unlist(lapply(a[nm == ""], function(x) {
             if (is.symbol(x)) as.character(x) else if (is.character(x)) x else "<dynamic>"
           })), error = function(err) "<dynamic>")
           if ("char" %in% nm) pk <- c(pk, as_pkg(a[["char"]], TRUE))
-          loaded    <<- c(loaded, pk)
+          loaded    <<- c(loaded, pk); note_load(pk)
           installed <<- c(installed, "pacman", pk)
         } else if (fn %in% other_read_fns) {
           other_reads <<- c(other_reads, fn)
@@ -392,6 +433,16 @@ grader_scan_script <- function(exprs, code_lines, is_rmd = FALSE,
           io_fn <<- c(io_fn, fn); io_idx <<- c(io_idx, cur_idx)
           io_kind <<- c(io_kind, cls$kind); io_text <<- c(io_text, cls$text)
         }
+      }
+
+      # if (): the condition is walked as a "guard" so a require() there is not
+      # counted as a second load of the package
+      if (!is.na(fn) && fn == "if" && length(e) >= 3) {
+        if_depth <<- if_depth + 1L
+        guard_depth <<- guard_depth + 1L; walk(e[[2]]); guard_depth <<- guard_depth - 1L
+        for (i in 3:length(e)) walk(e[[i]])
+        if_depth <<- if_depth - 1L
+        return(invisible())
       }
 
       for (i in seq_along(e)) {
@@ -431,10 +482,45 @@ grader_scan_script <- function(exprs, code_lines, is_rmd = FALSE,
     if (has_rng) rng_blocks <- rng_blocks + 1L
   }
 
+  # ---- package set-up order ------------------------------------------
+  # Convention: install and load every package before any other code runs.
+  # "Other code" excludes housekeeping that belongs at the top as well:
+  # constant assignments (pkgs <- c(...), filePath <- "..."), setwd(), options(),
+  # rm(), set.seed(), Sys.* settings. A set-up expression after the first real
+  # code expression is reported (not an error, a convention note).
+  setup_idx <- sort(unique(setup_idx))
+  neutral_fns <- c("setwd", "options", "rm", "set.seed", "Sys.setenv", "Sys.setlocale",
+                   "suppressPackageStartupMessages", "suppressWarnings", "suppressMessages", "invisible")
+  is_neutral <- function(e) {
+    if (!is.call(e)) return(TRUE)                         # a bare constant or symbol
+    h <- e[[1]]
+    if (!is.symbol(h)) return(FALSE)
+    hn <- as.character(h)
+    if (hn %in% c("<-", "=", "<<-") && length(e) == 3) return(safe_const(e[[3]]))
+    if (hn == "{") return(all(vapply(as.list(e)[-1], is_neutral, logical(1))))
+    hn %in% neutral_fns
+  }
+  code_idx <- setdiff(seq_len(n), setup_idx)
+  code_idx <- code_idx[!vapply(code_idx, function(i) is_neutral(exprs[[i]]), logical(1))]
+  late_setup_idx <- if (length(code_idx)) setup_idx[setup_idx > min(code_idx)] else integer()
+
+  # rm(list = ls()) is only a note when it comes after set-up or other code has started
+  first_any <- suppressWarnings(min(c(setup_idx, code_idx)))
+  drop <- pr_kind == "rm_ls" & (!is.finite(first_any) | pr_idx <= first_any)
+  pr_kind <- pr_kind[!drop]; pr_idx <- pr_idx[!drop]
+
+  # ---- numbered sections with no code ----------------------------------
+  # Template headers look like "# 7. BAR CHART OF EXPLANATORY VARIABLE (10 Points) ----".
+  # Only numbered headers count (the help / install / working-directory preamble is skipped).
+  all_labels <- vapply(hdr_idx, function(h) grader_header_label(code_lines[h]), character(1))
+  numbered   <- unique(all_labels[grepl("^[0-9]+[.)]", all_labels)])
+  sections_empty <- setdiff(numbered, label)
+
   sym <- lapply(seq_len(n), function(i) grader_expr_symbols(exprs[[i]]))
   io <- data.frame(fn = io_fn, idx = io_idx, kind = io_kind, text = io_text,
                    stringsAsFactors = FALSE)
   hc <- data.frame(fn = hc_fn, idx = hc_idx, text = hc_text, stringsAsFactors = FALSE)
+  load_calls <- data.frame(pkg = lc_pkg, idx = lc_idx, guard = lc_guard, stringsAsFactors = FALSE)
 
   list(
     n_exprs = n, expr_info = expr_info,
@@ -443,6 +529,10 @@ grader_scan_script <- function(exprs, code_lines, is_rmd = FALSE,
     dyn_load = dyn_load, dyn_install = dyn_install,
     seed_idx = seed_idx, rng_blocks = rng_blocks, rng_missing_idx = rng_missing_idx,
     io = io, hc = hc,
+    load_calls = load_calls, setup_idx = setup_idx, late_setup_idx = late_setup_idx,
+    sections_empty = sections_empty,
+    dev_opens = data.frame(fn = dev_fn, idx = dev_idx, stringsAsFactors = FALSE), dev_close_idx = dev_close_idx,
+    practice = data.frame(kind = pr_kind, idx = pr_idx, stringsAsFactors = FALSE),
     expr_assigned = lapply(sym, function(z) z$assigned),
     expr_used = lapply(sym, function(z) z$used)
   )

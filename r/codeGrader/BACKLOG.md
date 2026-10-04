@@ -2,7 +2,7 @@
 
 This is the **backlog for codeGrader only**. It lives at `r/codeGrader/BACKLOG.md`, is independent of the code-library `BACKLOG.md` (which does not link to it and does not track these items), and moves with the package when codeGrader gets its own GitHub repository and R package.
 
-* **Last updated:** 2026-10-03 (moved into `r/codeGrader/`; CG-001 and CG-003 closed; CG-028, CG-029 added) | **Owner:** Matthew C. Vanderbilt
+* **Last updated:** 2026-10-03 (v1.7.0 after first real run: parse recovery, student-order package check, redundant loads, repeat errors; CG-030, CG-031 added; CG-032 to CG-036 added and done) | **Owner:** Matthew C. Vanderbilt
 * **IDs:** `CG-NNN`, numbered from `CG-001`. The `CG-` prefix keeps these distinct from the library's `BL-NNN` items; the one library item referenced here is written "code-library BL-012" (its license item).
 * **Statuses:** Backlog (not started) | In progress | Done | Dropped. Closed items move to "Closed" at the bottom with the date and a one-line outcome.
 * **Adding an item:** next free `CG-` number, same fields as below (Area, Status, Priority, Added, Why, Next step). Anything not being done right now goes here rather than getting lost in chat.
@@ -40,6 +40,13 @@ This is the **backlog for codeGrader only**. It lives at `r/codeGrader/BACKLOG.m
 | CG-027 | Optional settings file (JSON or YAML) for defaults | Feature | Low | Backlog |
 | CG-028 | Minimum package versions in header `Dependencies` fields | Governance | Low | Backlog |
 | CG-029 | List codeGrader in an `r/README.md` (library-side; folder README does not exist yet) | Governance (library-side) | Low | Backlog |
+| CG-030 | Assignment templates: store file names in variables (national-university repo) | Course materials (other repo) | Medium | Backlog |
+| CG-031 | "Did you forget library(X)?" hint when a base function of the same name fails | Accuracy | Low | Backlog |
+| CG-032 | Section coverage: numbered template sections with no code | Feature | - | Done |
+| CG-033 | Graphics-device balance: `png()`/`pdf()` without `dev.off()` | Feature | - | Done |
+| CG-034 | Bad-practice calls: `attach()`, mid-script `rm(list = ls())`, `View()`, unguarded `install.packages()` | Feature | - | Done |
+| CG-035 | Optional style pass with `lintr` (naming, spacing, line length) as a separate column | Feature | - | Done |
+| CG-036 | Check saved file names against the names the assignment requires | Feature | - | Done |
 
 ---
 
@@ -143,6 +150,41 @@ This is the **backlog for codeGrader only**. It lives at `r/codeGrader/BACKLOG.m
 ### CG-021: Per-assignment approved lists and data files; `renv` version pinning; numeric ("magic number") hard-coding check
 - **Area:** Feature | **Status:** Backlog | **Priority:** Low | **Added:** 2026-10-03
 
+### CG-030: Assignment templates: store file names in variables (national-university repo)
+- **Area:** Course materials (lives in the national-university repo, not here) | **Status:** Backlog | **Priority:** Medium | **Added:** 2026-10-03
+- **Why:** The ANA600 A11 template itself writes `read.csv("vehicles.csv")` and tells students to save to `"wk1Data.comb08.hist.png"`, so the grader's hard-coded-path check flags every student who follows the template. Matthew's decision (2026-10-03): keep the check and change the templates, so students practise the habit being checked (`dataFile <- "vehicles.csv"; read.csv(dataFile)`; same for the `ggsave()`/`png()` file name). Until the templates change, these two flags are expected on every A11 submission.
+- **Next step:** Update the ANA600 (and ANA605 Rmd) templates and the assignment text in the national-university repo; re-run a graded folder to confirm the flag disappears for template-following students.
+
+### CG-031: "Did you forget library(X)?" hint when a base function of the same name fails
+- **Area:** Accuracy | **Status:** Backlog | **Priority:** Low | **Added:** 2026-10-03
+- **Why:** Since v1.7.0 the worker attaches only the student's own packages, so `filter(df, x > 1)` without `library(dplyr)` resolves to `stats::filter` and fails at run time. The student gets the real error (correct) but not the hint that an approved package exports a function of that name. The export map (`ctx$export_map`) already has what is needed.
+- **Next step:** In `grader_finalize_file()`, for a root error whose `failing_function` resolved to a base package while an approved package exports the same name, append "(an approved package, dplyr, has a function of this name; did you mean to load it?)" to the message.
+
+### CG-032: Section coverage: numbered template sections with no code
+- **Area:** Feature | **Status:** Done 2026-10-03 (v1.7.0) | **Priority:** Medium | **Added:** 2026-10-03
+- **Why:** Students sometimes skip a question entirely. The scanner already labels every expression with its nearest `# 7. BAR CHART ... ----` header, so a header with no expression under it is cheap to detect and would save the instructor a scroll through each file.
+- **Next step:** In `grader_scan_script()`, list header labels with zero expressions (ignoring the help / install / working-directory preamble); new column `sections_without_code`, feedback sentence "No code was found under: 7. BAR CHART OF EXPLANATORY VARIABLE".
+
+### CG-033: Graphics-device balance: `png()`/`pdf()` without `dev.off()`
+- **Area:** Feature | **Status:** Done 2026-10-03 (v1.7.0) | **Priority:** Medium | **Added:** 2026-10-03
+- **Why:** A common A11 mistake: `png("file.png")` opened and never closed, so the file is empty and every later plot goes into it; or a stray `dev.off()` with no device open (a run-time error the student does not understand). The worker already opens `pdf(NULL)` and can watch `dev.list()` between expressions.
+- **Next step:** Static count of device-opening calls versus `dev.off()` per code block, plus a worker check of `dev.cur()` at the end; flag `GRAPHICS_DEVICE_LEFT_OPEN`.
+
+### CG-034: Bad-practice calls: `attach()`, mid-script `rm(list = ls())`, `View()`, unguarded `install.packages()`
+- **Area:** Feature | **Status:** Done 2026-10-03 (v1.7.0) | **Priority:** Low | **Added:** 2026-10-03
+- **Why:** Each is harmless in the sandbox (`View()` and installs are already neutralised) but is a habit worth a one-line comment: `attach()` hides where variables come from; `rm(list = ls())` after set-up wipes the student's own objects; a bare `install.packages("x")` reinstalls on every run (the template's `if (!require(...))` guard is the convention).
+- **Next step:** Add to the static scan as a `practice_notes` column with one short sentence per pattern; `View()` and `install.packages()` counts are already available from `blocked_calls` and `sc$installed`.
+
+### CG-035: Optional style pass with `lintr` (naming, spacing, line length) as a separate column
+- **Area:** Feature | **Status:** Done 2026-10-03 (v1.7.0) | **Priority:** Low | **Added:** 2026-10-03
+- **Why:** Course conventions on naming (`wk1Data`), spacing around `<-`, and line length are currently reviewed by eye. `lintr::lint()` with a small, chosen set of linters would give a count and the first few examples without executing anything. Off by default so run time and noise stay down; approved list is unaffected.
+- **Next step:** `codeGrader(style = TRUE)`; linters: `object_name_linter`, `assignment_linter`, `infix_spaces_linter`, `line_length_linter(100)`, `commas_linter`. New columns `style_issues` (count) and `style_examples`.
+
+### CG-036: Check saved file names against the names the assignment requires
+- **Area:** Feature | **Status:** Done 2026-10-03 (v1.7.0) | **Priority:** Low | **Added:** 2026-10-03
+- **Why:** `expect_saved` only says whether *a* file was saved. A11 requires exactly `wk1Data.comb08.hist.png`; students save `histogram.png` or `wk1Data.comb08.hist` (no extension) and lose the point without knowing why.
+- **Next step:** Let the prompt accept one or more required file names (pattern allowed); compare with `files_written`; feedback "Your script saved 'histogram.png' but the assignment requires 'wk1Data.comb08.hist.png'". Ties in with CG-016 (saved assignment profile).
+
 ### CG-022: Cascade-error detection beyond plain assignments
 - **Area:** Accuracy | **Status:** Backlog | **Priority:** Low | **Added:** 2026-10-03
 - **Why:** Only plain `x <- ...`, `assign("x")`, and `for` variables are tracked. A failed `df$col <- ...` or `names(x) <- ...` can leave later errors mislabeled as root errors. Related limits: functions passed as values (`sapply(x, mean)`) and dataset objects are not counted when deciding which packages are necessary; random-number calls inside function definitions are not checked until called.
@@ -182,3 +224,14 @@ This is the **backlog for codeGrader only**. It lives at `r/codeGrader/BACKLOG.m
 
 ### CG-024: Runtime auto-install of `openxlsx`: Dropped 2026-10-03
 - **Outcome:** accepted as is. `openxlsx` (a Suggests dependency) installs on demand with a message. Revisit only if the package is ever prepared for CRAN.
+
+### CG-032: Section coverage: Done 2026-10-03
+- `sections_without_code` column and `SECTION_WITHOUT_CODE` flag (v1.7.0). Detail block kept under "Features deferred" for the design notes.
+### CG-033: Graphics-device balance: Done 2026-10-03
+- Static open/close counts, worker `devices_left_open`, `dev.off()`/`graphics.off()` stand-ins (v1.7.0).
+### CG-034: Bad-practice calls: Done 2026-10-03
+- `practice_notes` column, one note per kind (v1.7.0).
+### CG-035: Optional `lintr` style pass: Done 2026-10-03
+- `codeGrader(style = TRUE, style_naming, style_line_length)`; `style_issues` / `style_examples` (v1.7.0). `lintr` in `Suggests`.
+### CG-036: Required saved file names: Done 2026-10-03
+- Prompt for required name(s); `required_files_missing` column and `REQUIRED_FILE_NOT_SAVED` flag (v1.7.0).

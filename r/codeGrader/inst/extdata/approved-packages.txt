@@ -1,15 +1,40 @@
 # Approved packages - one per line. Lines starting with # are ignored.
 # Base R packages (stats, utils, graphics, grDevices, methods, etc.) are always allowed.
+
+# Original
+
+broom
+car
+corrplot
 dplyr
-tidyr
+glue
 ggplot2
+gridExtra
+httr
+jsonlite
+kableExtra
+knitr
+mosaic
+nortest
+openxlsx
+plotly
+purrr
+random
 readr
+readxl
+scales
+supernova
 tibble
+tidyr
+tidyverse
+tidycensus
+truncnorm
+
+# Added
+
 stringr
 forcats
 lubridate
-purrr
 janitor
 skimr
-broom
 data.table
